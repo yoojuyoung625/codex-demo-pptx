@@ -2130,8 +2130,9 @@
         nonbrandAnnualIndexBaseCache.clear();
       }
       function getNonbrandAnnualIndexBase(keyword, baseYear) {
-        if (baseYear === 2025) return WORKBOOK_NONBRAND_INDEX_BASE.get(keyword) || null;
-        if (!Number.isInteger(baseYear) || baseYear < 2026) return null;
+        const embeddedBase = WORKBOOK_NONBRAND_INDEX_BASE.get(keyword);
+        if (baseYear === 2025 && Number.isFinite(embeddedBase) && embeddedBase > 0) return embeddedBase;
+        if (!Number.isInteger(baseYear) || baseYear < 2022) return null;
         ensureNonbrandIndexDailyRecordMap();
         const cacheKey = `${keyword}|${baseYear}`;
         if (nonbrandAnnualIndexBaseCache.has(cacheKey)) return nonbrandAnnualIndexBaseCache.get(cacheKey);

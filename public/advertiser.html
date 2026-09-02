@@ -1918,6 +1918,12 @@
           item.keyword === keyword && item.type === type && item.date >= start && item.date <= end
             ? sum + item.value : sum, 0);
       }
+      function hasCompleteDailyRange(keyword, type, start, end, expectedDays = 7) {
+        const dates = new Set(records
+          .filter(item => item.keyword === keyword && item.type === type && item.date >= start && item.date <= end)
+          .map(item => item.date));
+        return dates.size === expectedDays;
+      }
       function calcChange(current, previous) {
         return previous === 0 ? null : (current - previous) / previous;
       }
@@ -1931,12 +1937,17 @@
           const weekPrev = sumFor(item.keyword, item.type, prevWeek.start, prevWeek.end);
           const monthNow = weekNow;
           const monthPrev = sumFor(item.keyword, item.type, fourWeeksAgo.start, fourWeeksAgo.end);
-          const weekDiff = weekNow - weekPrev;
-          const monthDiff = monthNow - monthPrev;
-          const weekPct = calcChange(weekNow, weekPrev);
-          const monthPct = calcChange(monthNow, monthPrev);
-          const status = weekDiff > 0 ? "up" : weekDiff < 0 ? "down" : "flat";
-          return { ...item, weekNow, weekPrev, weekDiff, weekPct, monthNow, monthPrev, monthDiff, monthPct, status };
+          const weekNowComplete = hasCompleteDailyRange(item.keyword, item.type, week.start, week.end);
+          const weekPrevComplete = hasCompleteDailyRange(item.keyword, item.type, prevWeek.start, prevWeek.end);
+          const monthPrevComplete = hasCompleteDailyRange(item.keyword, item.type, fourWeeksAgo.start, fourWeeksAgo.end);
+          const weekComparable = weekNowComplete && weekPrevComplete;
+          const monthComparable = weekNowComplete && monthPrevComplete;
+          const weekDiff = weekComparable ? weekNow - weekPrev : null;
+          const monthDiff = monthComparable ? monthNow - monthPrev : null;
+          const weekPct = weekComparable ? calcChange(weekNow, weekPrev) : null;
+          const monthPct = monthComparable ? calcChange(monthNow, monthPrev) : null;
+          const status = !weekComparable ? "incomplete" : weekDiff > 0 ? "up" : weekDiff < 0 ? "down" : "flat";
+          return { ...item, weekNow, weekPrev, weekDiff, weekPct, monthNow, monthPrev, monthDiff, monthPct, status, weekNowComplete, weekPrevComplete, monthPrevComplete };
         }).sort((a, b) => b.weekNow - a.weekNow || a.keyword.localeCompare(b.keyword));
       }
       function buildMonthlyRows(year) {
@@ -2200,27 +2211,27 @@
         }
         const indexBaseYear = reportDate && /^\d{4}-/.test(reportDate) ? Number(reportDate.slice(0, 4)) - 1 : 2025;
         const renderRows = groupRows => groupRows.map(row => {
-          const indexNow = row.type === "nonbrand" ? getNonbrandIndex(row.keyword, reportDate, indexBaseYear) : null;
-          const indexPrev = row.type === "nonbrand" ? getNonbrandIndex(row.keyword, shiftDate(reportDate, -7), indexBaseYear) : null;
-          const indexMonth = row.type === "nonbrand" ? getNonbrandIndex(row.keyword, shiftDate(reportDate, -28), indexBaseYear) : null;
-          const indexWeekDiff = Number.isFinite(indexNow) && Number.isFinite(indexPrev) ? indexNow - indexPrev : null;
-          const indexMonthDiff = Number.isFinite(indexNow) && Number.isFinite(indexMonth) ? indexNow - indexMonth : null;
+          const indexNow = row.type === "nonbrand" && row.weekNowComplete ? getNonbrandIndex(row.keyword, reportDate, indexBaseYear) : null;
+          const indexPrev = row.type === "nonbrand" && row.weekPrevComplete ? getNonbrandIndex(row.keyword, shiftDate(reportDate, -7), indexBaseYear) : null;
+          const indexMonth = row.type === "nonbrand" && row.monthPrevComplete ? getNonbrandIndex(row.keyword, shiftDate(reportDate, -28), indexBaseYear) : null;
+          const indexWeekDiff = row.weekDiff !== null && Number.isFinite(indexNow) && Number.isFinite(indexPrev) ? indexNow - indexPrev : null;
+          const indexMonthDiff = row.monthDiff !== null && Number.isFinite(indexNow) && Number.isFinite(indexMonth) ? indexNow - indexMonth : null;
           return `
             <tr>
               <td><div class="keyword-cell"><span class="type-dot ${row.type === "brand" ? "brand" : ""}"></span>${escapeHtml(row.keyword)}</div></td>
-              <td>${fmt.format(row.weekNow)}</td>
+              <td>${row.weekNowComplete ? fmt.format(row.weekNow) : "—"}</td>
               <td class="index-cell">${Number.isFinite(indexNow) ? formatIndex(indexNow) : `<span class="index-na">—</span>`}</td>
-              <td>${fmt.format(row.weekPrev)}</td>
+              <td>${row.weekPrevComplete ? fmt.format(row.weekPrev) : "—"}</td>
               <td class="index-cell">${Number.isFinite(indexPrev) ? formatIndex(indexPrev) : `<span class="index-na">—</span>`}</td>
               <td class="${row.weekDiff > 0 ? "num-up" : row.weekDiff < 0 ? "num-down" : ""}">${formatDelta(row.weekDiff)}</td>
               <td class="index-cell ${indexWeekDiff > 0 ? "num-up" : indexWeekDiff < 0 ? "num-down" : ""}">${Number.isFinite(indexWeekDiff) ? formatIndexDelta(indexWeekDiff) : `<span class="index-na">—</span>`}</td>
               <td class="${row.weekPct > 0 ? "num-up" : row.weekPct < 0 ? "num-down" : ""}">${formatChange(row.weekPct)}</td>
-              <td>${fmt.format(row.monthPrev)}</td>
+              <td>${row.monthPrevComplete ? fmt.format(row.monthPrev) : "—"}</td>
               <td class="index-cell">${Number.isFinite(indexMonth) ? formatIndex(indexMonth) : `<span class="index-na">—</span>`}</td>
               <td class="${row.monthDiff > 0 ? "num-up" : row.monthDiff < 0 ? "num-down" : ""}">${formatDelta(row.monthDiff)}</td>
               <td class="index-cell ${indexMonthDiff > 0 ? "num-up" : indexMonthDiff < 0 ? "num-down" : ""}">${Number.isFinite(indexMonthDiff) ? formatIndexDelta(indexMonthDiff) : `<span class="index-na">—</span>`}</td>
               <td class="${row.monthPct > 0 ? "num-up" : row.monthPct < 0 ? "num-down" : ""}">${formatChange(row.monthPct)}</td>
-              <td><span class="status ${row.status}">${row.status === "up" ? "상승" : row.status === "down" ? "하락" : "보합"}</span></td>
+              <td><span class="status ${row.status}">${row.status === "up" ? "상승" : row.status === "down" ? "하락" : row.status === "incomplete" ? "미완성" : "보합"}</span></td>
             </tr>
           `;
         }).join("");
@@ -2254,23 +2265,31 @@
             const weekNow = sumFor(keyword, group.type, week.start, week.end);
             const weekPrev = sumFor(keyword, group.type, previousWeek.start, previousWeek.end);
             const monthPrev = sumFor(keyword, group.type, previousMonth.start, previousMonth.end);
-            return { keyword, weekNow, weekPrev, monthPrev, weekDiff: weekNow - weekPrev };
+            return {
+              keyword, weekNow, weekPrev, monthPrev, weekDiff: weekNow - weekPrev,
+              weekComplete: hasCompleteDailyRange(keyword, group.type, week.start, week.end) && hasCompleteDailyRange(keyword, group.type, previousWeek.start, previousWeek.end),
+              monthComplete: hasCompleteDailyRange(keyword, group.type, week.start, week.end) && hasCompleteDailyRange(keyword, group.type, previousMonth.start, previousMonth.end)
+            };
           });
           const weekNow = keywordRows.reduce((sum, row) => sum + row.weekNow, 0);
           const weekPrev = keywordRows.reduce((sum, row) => sum + row.weekPrev, 0);
           const monthPrev = keywordRows.reduce((sum, row) => sum + row.monthPrev, 0);
-          const weekDiff = weekNow - weekPrev;
-          const monthDiff = weekNow - monthPrev;
-          const driverRows = keywordRows
+          const weekComplete = keywordRows.every(row => row.weekComplete);
+          const monthComplete = keywordRows.every(row => row.monthComplete);
+          const weekDiff = weekComplete ? weekNow - weekPrev : null;
+          const monthDiff = monthComplete ? weekNow - monthPrev : null;
+          const driverRows = weekComplete ? keywordRows
             .filter(row => weekDiff >= 0 ? row.weekDiff > 0 : row.weekDiff < 0)
             .sort((a, b) => weekDiff >= 0 ? b.weekDiff - a.weekDiff : a.weekDiff - b.weekDiff)
-            .slice(0, 2);
+            .slice(0, 2) : [];
           return {
             ...group,
             weekDiff,
             monthDiff,
-            weekPct: calcChange(weekNow, weekPrev),
-            monthPct: calcChange(weekNow, monthPrev),
+            weekPct: weekComplete ? calcChange(weekNow, weekPrev) : null,
+            monthPct: monthComplete ? calcChange(weekNow, monthPrev) : null,
+            weekComplete,
+            monthComplete,
             drivers: driverRows.map(row => row.keyword)
           };
         });
@@ -2282,8 +2301,8 @@
             <article class="weekly-comment-card ${summary.type}">
               <div class="weekly-comment-label"><span class="type-dot ${summary.type === "brand" ? "brand" : ""}"></span>${summary.label}</div>
               <div class="weekly-comment-line">
-                <span>전주 대비 <strong class="${trendClass(summary.weekDiff)}">${formatDelta(summary.weekDiff)}건 (${formatChange(summary.weekPct)}) ${trendWord(summary.weekDiff)}</strong></span>
-                <span>· 전월 대비 <strong class="${trendClass(summary.monthDiff)}">${formatDelta(summary.monthDiff)}건 (${formatChange(summary.monthPct)}) ${trendWord(summary.monthDiff)}</strong></span>
+                <span>전주 대비 <strong class="${trendClass(summary.weekDiff)}">${summary.weekComplete ? `${formatDelta(summary.weekDiff)}건 (${formatChange(summary.weekPct)}) ${trendWord(summary.weekDiff)}` : "비교 주차 데이터 미완성"}</strong></span>
+                <span>· 전월 대비 <strong class="${trendClass(summary.monthDiff)}">${summary.monthComplete ? `${formatDelta(summary.monthDiff)}건 (${formatChange(summary.monthPct)}) ${trendWord(summary.monthDiff)}` : "비교 주차 데이터 미완성"}</strong></span>
                 ${driverText}
               </div>
             </article>

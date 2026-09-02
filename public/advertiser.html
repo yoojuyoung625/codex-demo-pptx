@@ -1257,11 +1257,6 @@
         </div>
         <div class="dashboard-toolbar">
           <div class="toolbar-left">
-            <div class="segmented" role="group" aria-label="키워드 유형">
-              <button class="segment active" data-filter="all">전체</button>
-              <button class="segment" data-filter="nonbrand">비브랜드</button>
-              <button class="segment" data-filter="brand">브랜드</button>
-            </div>
             <div class="date-wrap">
               <label for="monthlyYearSelect">월별 연도</label>
               <select class="date-input" id="monthlyYearSelect" aria-label="월별 데이터 연도"></select>
@@ -1280,6 +1275,11 @@
           <div>
             <h2 class="panel-title" id="monthlyTableTitle">월별 브랜드·비브랜드 키워드 쿼리</h2>
             <div class="panel-desc monthly-source-note" id="monthlyPeriodDescription">엑셀 일별 원본을 매월 1일~말일까지 합산합니다.</div>
+          </div>
+          <div class="segmented" role="group" aria-label="월별 키워드 유형">
+            <button class="segment active" type="button" data-filter-scope="monthly" data-filter="all">전체</button>
+            <button class="segment" type="button" data-filter-scope="monthly" data-filter="brand">브랜드</button>
+            <button class="segment" type="button" data-filter-scope="monthly" data-filter="nonbrand">비브랜드</button>
           </div>
         </div>
         <div class="table-scroll">
@@ -1329,6 +1329,11 @@
             <div class="panel-desc">기준 주차 vs 직전 주차 · 기준 주차 vs 4주 전 동일 요일 구간 · NAVER API 데이터 갱신 시 코멘트 자동 재계산</div>
           </div>
           <div class="table-tools">
+            <div class="segmented" role="group" aria-label="주차 성과 키워드 유형">
+              <button class="segment active" type="button" data-filter-scope="weekly" data-filter="all">전체</button>
+              <button class="segment" type="button" data-filter-scope="weekly" data-filter="brand">브랜드</button>
+              <button class="segment" type="button" data-filter-scope="weekly" data-filter="nonbrand">비브랜드</button>
+            </div>
             <div class="date-wrap">
               <label for="reportDate">기준 주차</label>
               <select class="date-input" id="reportDate" aria-label="기준 주차"></select>
@@ -1582,7 +1587,8 @@
       if (!sourceConfig.nonbrandUrl) sourceConfig.nonbrandUrl = DEFAULT_SOURCE_CONFIG.nonbrandUrl;
       if (!sourceConfig.brandUrl) sourceConfig.brandUrl = DEFAULT_SOURCE_CONFIG.brandUrl;
       localStorage.setItem(KEYS.sources, JSON.stringify(sourceConfig));
-      let activeFilter = "all";
+      let monthlyFilter = "all";
+      let weeklyFilter = "all";
       let dailyType = "nonbrand";
       let reportRows = [];
       let monthlyRows = [];
@@ -1902,14 +1908,14 @@
       function openSettingsIfUnmatched() {
         if (unmatched.length && records.length === 0) openSettings();
       }
-      function getFilteredKeywords() {
-        const query = normalizeKeyword($("#keywordSearch").value).toLowerCase();
+      function getFilteredKeywords(filter = "all", includeSearch = false) {
+        const query = includeSearch ? normalizeKeyword($("#keywordSearch").value).toLowerCase() : "";
         const rows = [
           ...keywordConfig.nonbrand.map(keyword => ({ keyword, type: "nonbrand" })),
           ...keywordConfig.brand.map(keyword => ({ keyword, type: "brand" }))
         ];
         return rows.filter(item =>
-          (activeFilter === "all" || item.type === activeFilter) &&
+          (filter === "all" || item.type === filter) &&
           (!query || item.keyword.toLowerCase().includes(query))
         );
       }
@@ -1932,7 +1938,7 @@
         const week = { start: shiftDate(reportDate, -6), end: reportDate };
         const prevWeek = { start: shiftDate(reportDate, -13), end: shiftDate(reportDate, -7) };
         const fourWeeksAgo = { start: shiftDate(reportDate, -34), end: shiftDate(reportDate, -28) };
-        return getFilteredKeywords().map(item => {
+        return getFilteredKeywords(weeklyFilter, true).map(item => {
           const weekNow = sumFor(item.keyword, item.type, week.start, week.end);
           const weekPrev = sumFor(item.keyword, item.type, prevWeek.start, prevWeek.end);
           const monthNow = weekNow;
@@ -1953,7 +1959,7 @@
       function buildMonthlyRows(year) {
         const selectedYear = String(year || "");
         if (!selectedYear) return [];
-        return getFilteredKeywords().map(item => {
+        return getFilteredKeywords(monthlyFilter, false).map(item => {
           const years = WORKBOOK_MONTHLY_MAP.get(`${item.type}|${item.keyword}`) || {};
           const sourceMonths = years[selectedYear] || [];
           const dailyByMonth = Array.from({ length: 12 }, () => []);
@@ -2260,7 +2266,7 @@
         const summaries = [
           { type: "nonbrand", label: "비브랜드 쿼리", keywords: keywordConfig.nonbrand },
           { type: "brand", label: "브랜드 쿼리", keywords: keywordConfig.brand }
-        ].map(group => {
+        ].filter(group => weeklyFilter === "all" || group.type === weeklyFilter).map(group => {
           const keywordRows = group.keywords.map(keyword => {
             const weekNow = sumFor(keyword, group.type, week.start, week.end);
             const weekPrev = sumFor(keyword, group.type, previousWeek.start, previousWeek.end);
@@ -2325,7 +2331,8 @@
           record.date.startsWith(`${year}-`) &&
           record.date > WORKBOOK_MONTHLY_DATA.cutoff
         );
-        $("#monthlyTableTitle").textContent = `${year}년 월별 브랜드·비브랜드 키워드 쿼리`;
+        const monthlyTypeLabel = monthlyFilter === "brand" ? "브랜드" : monthlyFilter === "nonbrand" ? "비브랜드" : "브랜드·비브랜드";
+        $("#monthlyTableTitle").textContent = `${year}년 월별 ${monthlyTypeLabel} 키워드 쿼리`;
         $("#monthlyPeriodDescription").textContent = hasSheetDailyData
           ? `엑셀 일별 원본과 NAVER API 확정 데이터를 ${year}년 1~${monthCount}월까지 월별로 합산했습니다.`
           : Number(year) === 2026
@@ -2356,12 +2363,15 @@
           { type: "nonbrand", label: "비브랜드 키워드", rows: rows.filter(row => row.type === "nonbrand") }
         ].filter(group => group.rows.length);
         const grandMonths = monthTotals(rows);
-        body.innerHTML = `
+        const grandTotalRow = monthlyFilter === "all" ? `
           <tr class="monthly-grand-total">
             <td><span class="monthly-summary-label">전체 월별 합계</span></td>
             ${grandMonths.map(value => `<td>${fmt.format(value)}</td>`).join("")}
             <td>${fmt.format(displayedTotal(grandMonths))}</td>
           </tr>
+        ` : "";
+        body.innerHTML = `
+          ${grandTotalRow}
           ${groups.map(group => {
             const totals = monthTotals(group.rows);
             return `
@@ -2419,7 +2429,7 @@
           .filter(date => date <= reportDate && isoToDate(date).getDay() === 0)
           .sort()
           .slice(-8);
-        const filteredTypes = activeFilter === "all" ? ["nonbrand", "brand"] : [activeFilter];
+        const filteredTypes = weeklyFilter === "all" ? ["nonbrand", "brand"] : [weeklyFilter];
         const series = filteredTypes.map(type => ({
           type,
           name: type === "brand" ? "브랜드" : "비브랜드",
@@ -2746,11 +2756,13 @@
       });
       $("#rawSheetLink").addEventListener("click", openRawSheet);
       $("#closeSheetDialogBtn").addEventListener("click", closeSheetDialog);
-      $$(".segment").forEach(button => button.addEventListener("click", () => {
-        $$(".segment").forEach(item => item.classList.remove("active"));
+      $$(".segment[data-filter-scope]").forEach(button => button.addEventListener("click", () => {
+        const scope = button.dataset.filterScope;
+        $$(`.segment[data-filter-scope="${scope}"]`).forEach(item => item.classList.remove("active"));
         button.classList.add("active");
-        activeFilter = button.dataset.filter;
-        refreshAll();
+        if (scope === "monthly") monthlyFilter = button.dataset.filter;
+        if (scope === "weekly") weeklyFilter = button.dataset.filter;
+        refreshAll($("#reportDate").value, $("#monthlyYearSelect").value);
       }));
       $("#reportDate").addEventListener("change", () => refreshAll($("#reportDate").value, $("#monthlyYearSelect").value));
       $("#monthlyYearSelect").addEventListener("change", () => refreshAll($("#reportDate").value, $("#monthlyYearSelect").value));

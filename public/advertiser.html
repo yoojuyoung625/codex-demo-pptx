@@ -2676,8 +2676,37 @@
       $$(".portal-nav-button[data-view]").forEach(button => button.addEventListener("click", () => {
         showPortalView(button.dataset.view, button.dataset.scrollTarget || "", button);
       }));
-      $("#openDashboardBtn").addEventListener("click", () => {
-        showPortalView("dashboard", "performance-report", $(`.portal-nav-button[data-view="dashboard"]`));
+      $("#openDashboardBtn").addEventListener("click", async () => {
+        const button = $("#openDashboardBtn");
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = `<span aria-hidden="true">↻</span> 전일 데이터 업데이트 중…`;
+        let updateMessage = "";
+        let updateFailed = false;
+        try {
+          const response = await fetch("/api/jobs/daily", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({})
+          });
+          const job = await response.json();
+          if (!response.ok) throw new Error(job.error || `전일 데이터 업데이트 실패 (${response.status})`);
+          await loadApiData({ silent: true });
+          if (job.status === "FINAL") updateMessage = `전일 데이터 업데이트 완료 · 확정 ${job.finalCount || 0}건`;
+          else if (job.status === "SKIPPED") updateMessage = "전일 데이터가 이미 확정되어 최신값을 불러왔습니다.";
+          else {
+            updateFailed = true;
+            updateMessage = `일부 API 호출이 완료되지 않았습니다. 기존 데이터는 유지되며 내부 화면에서 재시도할 수 있습니다.`;
+          }
+        } catch (error) {
+          updateFailed = true;
+          updateMessage = `${error.message || "전일 데이터 업데이트에 실패했습니다."} 기존 확정 데이터로 대시보드를 엽니다.`;
+        } finally {
+          button.disabled = false;
+          button.innerHTML = originalHtml;
+          showPortalView("dashboard", "performance-report", $(`.portal-nav-button[data-view="dashboard"]`));
+          showToast(updateMessage, updateFailed);
+        }
       });
       $("#openDailyViewBtn").addEventListener("click", () => {
         showPortalView("daily");
@@ -2787,7 +2816,7 @@
       });
 
 
-      async function loadApiData() {
+      async function loadApiData({ silent = false } = {}) {
         try {
           const response = await fetch("/api/history", { cache: "no-store" });
           if (!response.ok) throw new Error(`API 데이터 조회 실패 (${response.status})`);
@@ -2812,7 +2841,7 @@
           syncKeywordTextareas();
           const latestDate = records.reduce((latest, item) => item.date > latest ? item.date : latest, "");
           refreshAll(latestDate || undefined);
-          showToast(`NAVER API 확정 데이터 ${records.length.toLocaleString("ko-KR")}건을 불러왔습니다.`);
+          if (!silent) showToast(`NAVER API 확정 데이터 ${records.length.toLocaleString("ko-KR")}건을 불러왔습니다.`);
         } catch (error) {
           records = [];
           refreshAll();

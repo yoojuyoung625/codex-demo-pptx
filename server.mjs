@@ -42,24 +42,23 @@ const readJsonBody = async req => {
   }
   return JSON.parse(raw || "{}");
 };
-const isoDate = date => date.toISOString().slice(0, 10);
+const todayInKst = (date = new Date()) => new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(date);
+const shiftIsoDate = (date, days) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(Date.UTC(year, month - 1, day + days));
+  return value.toISOString().slice(0, 10);
+};
 const completedWindow = () => {
-  const end = new Date();
-  end.setDate(end.getDate() - 1);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 29);
-  return { startDate: isoDate(start), endDate: isoDate(end) };
+  const endDate = shiftIsoDate(todayInKst(), -1);
+  return { startDate: shiftIsoDate(endDate, -29), endDate };
 };
 const windowForTarget = targetDate => {
-  const end = new Date(`${targetDate}T12:00:00`);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 29);
-  return { startDate: isoDate(start), endDate: isoDate(end) };
-};
-const shiftIsoDate = (date, days) => {
-  const value = new Date(`${date}T12:00:00`);
-  value.setDate(value.getDate() + days);
-  return isoDate(value);
+  return { startDate: shiftIsoDate(targetDate, -29), endDate: targetDate };
 };
 const dateRange = (from, to) => {
   const dates = [];
@@ -189,7 +188,7 @@ async function handleDashboard(req, res) {
 }
 
 async function runDailyJob(targetDate, retryOnly = false) {
-  const today = isoDate(new Date());
+  const today = todayInKst();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate) || targetDate >= today) throw new Error("완료된 전일 이전 날짜만 확정할 수 있습니다.");
   const configuredKeywords = await allConfiguredKeywords();
   const store = await readStore();
@@ -217,11 +216,12 @@ async function runDailyJob(targetDate, retryOnly = false) {
       const searchAdRow = adMap.get(target.keyword.replace(/\s/g, "").toLowerCase());
       const trend = trendMap.get(target.keyword) || [];
       const ratioSum = trend.reduce((sum, row) => sum + (Number(row.ratio) || 0), 0);
-      const targetTrend = trend.find(row => row.period === targetDate) || { period: targetDate, ratio: 0 };
+      const targetTrend = trend.find(row => row.period === targetDate);
+      const completeWindow = trend.length === 30 && Boolean(targetTrend);
       let record;
-      if (!searchAdRow || !ratioSum) {
+      if (!searchAdRow || !ratioSum || !completeWindow) {
         record = { date: targetDate, keyword: target.keyword, type: target.type, status: "FAILED", attempts, updatedAt: fetchedAt,
-          error: !searchAdRow ? "검색광고 정확 일치 키워드 없음" : "DataLab 지수 합계 0",
+          error: !searchAdRow ? "검색광고 정확 일치 키워드 없음" : !completeWindow ? "DataLab 최근 30일 또는 전일 지수 미완성" : "DataLab 지수 합계 0",
           snapshot: { fetchedAt, window, searchAd: searchAdRow || null, datalab: trend } };
       } else {
         record = { date: targetDate, keyword: target.keyword, type: target.type, status: "FINAL", attempts, finalizedAt: fetchedAt,
@@ -250,7 +250,7 @@ async function runDailyJob(targetDate, retryOnly = false) {
 }
 
 async function runBackfill(from, to) {
-  const today = isoDate(new Date());
+  const today = todayInKst();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to || to >= today)
     throw new Error("백필 기간은 완료된 전일까지 올바른 날짜로 지정해야 합니다.");
   const configuredKeywords = await allConfiguredKeywords();
@@ -359,7 +359,7 @@ const server = http.createServer(async (req, res) => {
 if (process.argv.includes("--run-daily")) {
   const job = await runDailyJob(completedWindow().endDate, false);
   console.log(JSON.stringify(job));
-  process.exit(job.status === "FAILED" ? 1 : 0);
+  process.exit(["FAILED", "PARTIAL"].includes(job.status) ? 1 : 0);
 } else {
   server.listen(Number(process.env.PORT || 3000), () => console.log(`http://localhost:${process.env.PORT || 3000}`));
 }

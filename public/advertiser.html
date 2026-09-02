@@ -2684,7 +2684,7 @@
         let updateMessage = "";
         let updateFailed = false;
         try {
-          const response = await fetch("/api/jobs/daily", {
+          const response = await fetch("/api/jobs/catchup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({})
@@ -2692,8 +2692,8 @@
           const job = await response.json();
           if (!response.ok) throw new Error(job.error || `전일 데이터 업데이트 실패 (${response.status})`);
           await loadApiData({ silent: true });
-          if (job.status === "FINAL") updateMessage = `전일 데이터 업데이트 완료 · 확정 ${job.finalCount || 0}건`;
-          else if (job.status === "SKIPPED") updateMessage = "전일 데이터가 이미 확정되어 최신값을 불러왔습니다.";
+          if (job.status === "FINAL") updateMessage = `${job.catchupFrom || job.targetDate || "누락일"}~${job.catchupTo || job.targetDate || "전일"} 업데이트 완료 · 확정 ${job.finalCount || 0}건`;
+          else if (job.status === "SKIPPED") updateMessage = "누락 날짜 없이 전일까지 모두 확정되어 최신값을 불러왔습니다.";
           else {
             updateFailed = true;
             updateMessage = `일부 API 호출이 완료되지 않았습니다. 기존 데이터는 유지되며 내부 화면에서 재시도할 수 있습니다.`;

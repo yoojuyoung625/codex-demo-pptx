@@ -297,6 +297,32 @@ async function runBackfill(from, to) {
   job.finishedAt = new Date().toISOString(); await writeStore(store); return job;
 }
 
+async function runCatchup() {
+  const to = completedWindow().endDate;
+  const from = process.env.COLLECTION_START_DATE || "2026-08-01";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || from > to)
+    throw new Error("COLLECTION_START_DATE는 전일 이전의 yyyy-mm-dd 형식이어야 합니다.");
+  const configuredKeywords = await allConfiguredKeywords();
+  const store = await readStore();
+  const finalKeys = new Set(store.records.filter(row => row.status === "FINAL").map(row => `${row.date}|${row.keyword}`));
+  const missingDates = dateRange(from, to).filter(date => configuredKeywords.some(row => !finalKeys.has(`${date}|${row.keyword}`)));
+  if (!missingDates.length) return {
+    type: "CATCHUP",
+    status: "SKIPPED",
+    from,
+    to,
+    requested: 0,
+    missingDateCount: 0,
+    message: "수집 기준일 이후 전일까지 모든 키워드가 확정되어 있습니다.",
+    finishedAt: new Date().toISOString(),
+  };
+  const earliestMissing = missingDates[0];
+  const job = missingDates.length === 1 && earliestMissing === to
+    ? await runDailyJob(to, false)
+    : await runBackfill(earliestMissing, to);
+  return { ...job, type: job.type || "CATCHUP_DAILY", catchupFrom: earliestMissing, catchupTo: to, missingDateCount: missingDates.length };
+}
+
 async function historyResponse(url) {
   const store = await readStore();
   const from = url.searchParams.get("from") || "0000-01-01";
@@ -323,6 +349,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/api/jobs/backfill") {
       const body = await readJsonBody(req);
       return json(res, 200, await runBackfill(body.from, body.to));
+    }
+    if (req.method === "POST" && req.url === "/api/jobs/catchup") {
+      return json(res, 200, await runCatchup());
     }
     if (req.method === "GET" && req.url === "/api/status") return json(res, 200, {
       searchAdConfigured: configured(["NAVER_AD_API_KEY", "NAVER_AD_SECRET_KEY", "NAVER_AD_CUSTOMER_ID"]),

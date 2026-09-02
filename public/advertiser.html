@@ -1,0 +1,2833 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>네이버 트렌드 쿼리 자동 보고서</title>
+  <meta name="description" content="네이버 검색광고와 DataLab API 데이터를 자동 반영하고 전주·전월 추이를 비교하는 보고서" />
+  <style>
+    :root {
+      --navy-950: #071827;
+      --navy-900: #0d2238;
+      --navy-800: #173653;
+      --blue-600: #1769e0;
+      --blue-500: #2e7df0;
+      --cyan-500: #20b9c8;
+      --cyan-100: #dff7f8;
+      --orange-500: #f28b45;
+      --green-600: #158761;
+      --green-100: #dff5ec;
+      --red-600: #d24747;
+      --red-100: #fee9e7;
+      --amber-100: #fff3cf;
+      --ink: #172333;
+      --muted: #697789;
+      --line: #dce4ee;
+      --panel: #ffffff;
+      --bg: #f3f6fa;
+      --shadow: 0 14px 40px rgba(18, 40, 68, .09);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: light; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 82% 0%, rgba(32,185,200,.11), transparent 27rem),
+        var(--bg);
+      font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .portal-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .portal-sidebar {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 20px 12px 14px;
+      border-right: 1px solid #e3ebf4;
+      background:
+        linear-gradient(180deg, rgba(230,244,255,.78), rgba(250,252,255,.96) 38%, rgba(239,237,255,.78));
+      box-shadow: 8px 0 30px rgba(32,67,108,.04);
+    }
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 7px 20px;
+    }
+    .sidebar-logo {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      color: white;
+      border-radius: 11px;
+      background: linear-gradient(145deg, #1369e8, #16b9c9);
+      box-shadow: 0 8px 18px rgba(23,105,224,.2);
+      font-size: 13px;
+      font-weight: 950;
+    }
+    .sidebar-brand-name { color: #15253a; font-size: 13px; font-weight: 950; letter-spacing: .02em; }
+    .sidebar-brand-sub { margin-top: 2px; color: #7b8ca2; font-size: 8px; font-weight: 800; letter-spacing: .11em; }
+    .sidebar-division {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 5px;
+      padding: 2px 6px;
+      color: #5d7189;
+      border: 1px solid #d8e4ef;
+      border-radius: 5px;
+      background: rgba(255,255,255,.7);
+      font-size: 8px;
+      font-weight: 800;
+    }
+    .portal-nav { display: grid; gap: 5px; }
+    .nav-section-label {
+      margin: 14px 8px 5px;
+      color: #93a3b8;
+      font-size: 8px;
+      font-weight: 950;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .portal-nav-button {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      min-height: 39px;
+      padding: 5px 9px;
+      color: #43556b;
+      text-align: left;
+      border: 1px solid #e4ebf3;
+      border-radius: 12px;
+      background: rgba(255,255,255,.7);
+      font-size: 10px;
+      font-weight: 850;
+      transition: .18s ease;
+    }
+    .portal-nav-button:hover,
+    .portal-nav-button:focus-visible {
+      transform: translateX(2px);
+      color: #174d9a;
+      border-color: #b9d3f7;
+      outline: none;
+    }
+    .portal-nav-button.active {
+      color: white;
+      border-color: transparent;
+      background: linear-gradient(110deg, #1769e0, #665ee8 65%, #19aecd);
+      box-shadow: 0 9px 22px rgba(49,93,214,.22);
+    }
+    .nav-icon {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      color: #5d6f84;
+      border-radius: 8px;
+      background: #f1f5f9;
+      font-size: 12px;
+      font-weight: 950;
+    }
+    .portal-nav-button.active .nav-icon { color: #2359c2; background: white; }
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: auto;
+      padding: 11px 10px;
+      border: 1px solid #e2e9f2;
+      border-radius: 13px;
+      background: rgba(255,255,255,.82);
+    }
+    .sidebar-avatar {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      color: #2c5aa5;
+      border-radius: 50%;
+      background: #e8f2ff;
+      font-size: 11px;
+      font-weight: 950;
+    }
+    .sidebar-user-name { color: #33465c; font-size: 9px; font-weight: 900; }
+    .sidebar-user-mail { margin-top: 2px; color: #8997a8; font-size: 7px; }
+    .portal-main { min-width: 0; }
+    .portal-view { display: none; }
+    .portal-view.active { display: block; }
+    .landing-view {
+      min-height: 100vh;
+      padding: clamp(28px, 5vw, 76px);
+      background:
+        radial-gradient(circle at 86% 7%, rgba(92,166,255,.18), transparent 28rem),
+        radial-gradient(circle at 35% 95%, rgba(32,185,200,.08), transparent 24rem),
+        #fbfdff;
+    }
+    .landing-inner {
+      display: grid;
+      grid-template-columns: minmax(360px, .92fr) minmax(440px, 1.08fr);
+      align-items: center;
+      gap: clamp(44px, 7vw, 96px);
+      width: min(1180px, 100%);
+      min-height: calc(100vh - clamp(56px, 10vw, 152px));
+      margin: 0 auto;
+    }
+    .landing-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      color: #275ed0;
+      border: 1px solid #c4ddff;
+      border-radius: 999px;
+      background: #eaf4ff;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .landing-badge::before { width: 6px; height: 6px; border-radius: 50%; background: #2e7df0; content: ""; }
+    .landing-title {
+      margin: 21px 0 0;
+      color: #101f34;
+      font-size: clamp(38px, 5vw, 66px);
+      line-height: 1.02;
+      letter-spacing: -.055em;
+    }
+    .landing-title span { display: block; color: #3159df; }
+    .landing-description {
+      max-width: 590px;
+      margin: 20px 0 0;
+      color: #52657b;
+      font-size: clamp(13px, 1.35vw, 16px);
+      line-height: 1.75;
+    }
+    .landing-note {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 11px 0 0;
+      color: #8190a2;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .landing-note::before { color: #2e7df0; content: "✓"; font-weight: 950; }
+    .landing-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: min(360px, 100%);
+      min-height: 56px;
+      margin-top: 25px;
+      color: white;
+      border: 0;
+      border-radius: 13px;
+      background: linear-gradient(180deg, #1474f0, #0755d7);
+      box-shadow: 0 13px 24px rgba(21,99,222,.28);
+      font-size: 16px;
+      font-weight: 950;
+      transition: .2s ease;
+    }
+    .landing-cta:hover,
+    .landing-cta:focus-visible { transform: translateY(-2px); box-shadow: 0 17px 30px rgba(21,99,222,.34); outline: none; }
+    .landing-raw-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin: 15px 0 0 8px;
+      padding: 6px 2px;
+      color: #4b6078;
+      border: 0;
+      border-bottom: 1px solid #9eb0c4;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+    .landing-raw-link:hover,
+    .landing-raw-link:focus-visible { color: #1769e0; border-color: #1769e0; outline: none; }
+    .landing-preview {
+      position: relative;
+      min-height: 430px;
+      padding: 20px;
+      border: 1px solid rgba(73,132,204,.14);
+      border-radius: 26px;
+      background: linear-gradient(145deg, rgba(255,255,255,.95), rgba(238,246,253,.95));
+      box-shadow: 0 26px 55px rgba(37,62,89,.2);
+      transform: perspective(1100px) rotateY(-4deg) rotateX(1deg);
+    }
+    .preview-live {
+      position: absolute;
+      z-index: 2;
+      top: 13px;
+      left: 21px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      color: #4f6073;
+      border: 1px solid #e1e8f0;
+      border-radius: 999px;
+      background: white;
+      box-shadow: 0 4px 14px rgba(37,62,89,.08);
+      font-size: 7px;
+      font-weight: 950;
+      letter-spacing: .06em;
+    }
+    .preview-live::before { width: 5px; height: 5px; border-radius: 50%; background: #ef5858; content: ""; }
+    .preview-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+    .preview-kpi {
+      min-height: 58px;
+      padding: 15px 10px 9px;
+      border-left: 3px solid var(--preview-accent, #2e7df0);
+      border-radius: 9px;
+      background: white;
+      box-shadow: 0 4px 12px rgba(37,62,89,.06);
+    }
+    .preview-kpi::before, .preview-kpi::after { display: block; border-radius: 999px; background: #dfe7f0; content: ""; }
+    .preview-kpi::before { width: 54%; height: 5px; margin-bottom: 8px; }
+    .preview-kpi::after { width: 72%; height: 10px; background: #25384d; }
+    .preview-chart-card { position: relative; height: 210px; margin-top: 11px; overflow: hidden; border: 1px solid #e9eef4; border-radius: 12px; background: white; }
+    .preview-chart-title { width: 32%; height: 8px; margin: 16px; border-radius: 999px; background: #dfe7f0; }
+    .preview-grid-line { height: 1px; margin: 35px 18px 0; background: #edf1f5; }
+    .preview-line {
+      position: absolute;
+      left: 10%;
+      width: 27%;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--preview-line, #2e7df0);
+      transform-origin: left center;
+    }
+    .preview-line.blue-a { top: 133px; transform: rotate(-14deg); }
+    .preview-line.blue-b { top: 105px; left: 35%; transform: rotate(6deg); }
+    .preview-line.blue-c { top: 112px; left: 59%; transform: rotate(-22deg); width: 31%; }
+    .preview-line.cyan-a { top: 126px; --preview-line:#19b77d; transform: rotate(-8deg); }
+    .preview-line.cyan-b { top: 103px; left: 35%; --preview-line:#19b77d; transform: rotate(-7deg); }
+    .preview-line.cyan-c { top: 82px; left: 59%; --preview-line:#19b77d; transform: rotate(19deg); width: 31%; }
+    .preview-line.orange-a { top: 93px; --preview-line:#f39a19; transform: rotate(8deg); }
+    .preview-line.orange-b { top: 111px; left: 35%; --preview-line:#f39a19; transform: rotate(-3deg); }
+    .preview-line.orange-c { top: 103px; left: 59%; --preview-line:#f39a19; transform: rotate(8deg); width: 31%; }
+    .preview-table-card { margin-top: 11px; padding: 15px; border: 1px solid #e9eef4; border-radius: 12px; background: white; }
+    .preview-table-title { width: 28%; height: 7px; margin-bottom: 13px; border-radius: 999px; background: #dfe7f0; }
+    .preview-table-row { height: 9px; margin-top: 8px; border-radius: 3px; background: linear-gradient(90deg, #f0f4f8 24%, transparent 24% 28%, #f0f4f8 28% 48%, transparent 48% 53%, #e6f6f8 53% 70%, transparent 70% 75%, #edf1f5 75%); }
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 72px;
+      padding: 13px clamp(18px, 4vw, 52px);
+      color: white;
+      background: rgba(7, 24, 39, .96);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.09);
+    }
+    .brand-lockup { display: flex; align-items: center; gap: 13px; min-width: 0; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      border-radius: 13px;
+      color: var(--navy-950);
+      background: linear-gradient(145deg, #37d3d8, #79f0ca);
+      font-weight: 900;
+      box-shadow: 0 8px 22px rgba(32,185,200,.25);
+    }
+    .brand-name { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .brand-sub { margin-top: 2px; color: #9eb0c3; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .top-actions { display: flex; align-items: center; gap: 9px; }
+    .minimal-top-actions {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 9px;
+      width: min(1480px, calc(100% - 32px));
+      margin: 16px auto -12px;
+    }
+    .daily-close-button {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--ink);
+      background: #fff;
+      font-size: 27px;
+      font-weight: 400;
+      line-height: 1;
+      box-shadow: 0 5px 14px rgba(20,45,70,.08);
+      transition: .16s ease;
+    }
+    .daily-close-button:hover {
+      border-color: #b8c8d8;
+      background: #f4f8fc;
+      transform: translateY(-1px);
+    }
+
+    .container { width: min(1480px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
+    .portal-hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 560px;
+      display: grid;
+      place-items: center;
+      padding: clamp(48px, 8vw, 100px) clamp(22px, 6vw, 72px);
+      margin-bottom: 22px;
+      color: white;
+      text-align: center;
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(32,185,200,.28), transparent 24rem),
+        radial-gradient(circle at 88% 90%, rgba(46,125,240,.24), transparent 28rem),
+        var(--navy-950);
+      box-shadow: 0 22px 60px rgba(7,24,39,.19);
+    }
+    .portal-hero::before,
+    .portal-hero::after {
+      position: absolute;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 50%;
+      content: "";
+    }
+    .portal-hero::before { width: 330px; height: 330px; top: -180px; right: 8%; }
+    .portal-hero::after { width: 230px; height: 230px; bottom: -140px; left: 4%; }
+    .portal-content { position: relative; z-index: 1; width: min(920px, 100%); }
+    .portal-content .eyebrow { justify-content: center; }
+    .portal-title { margin: 0 auto; font-size: clamp(34px, 5.8vw, 72px); line-height: 1.06; letter-spacing: -.045em; }
+    .portal-subtitle { width: min(650px, 100%); margin: 18px auto 0; color: #b9cad9; font-size: clamp(13px, 1.7vw, 17px); line-height: 1.75; }
+    .gateway-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: min(780px, 100%); margin: 34px auto 0; text-align: left; }
+    .gateway-link {
+      position: relative;
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 13px;
+      min-height: 112px;
+      padding: 18px;
+      color: white;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 17px;
+      background: rgba(255,255,255,.07);
+      backdrop-filter: blur(12px);
+      transition: .2s ease;
+    }
+    .gateway-link:hover, .gateway-link:focus-visible {
+      transform: translateY(-3px);
+      border-color: rgba(116,233,221,.58);
+      background: rgba(255,255,255,.11);
+      box-shadow: 0 15px 34px rgba(0,0,0,.18);
+      outline: none;
+    }
+    .gateway-link.report:hover, .gateway-link.report:focus-visible { border-color: rgba(123,174,255,.62); }
+    .gateway-icon {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      color: #06273a;
+      background: linear-gradient(145deg, #4bd3d7, #87eccd);
+      font-size: 21px;
+      font-weight: 900;
+    }
+    .gateway-link.report .gateway-icon { color: white; background: linear-gradient(145deg, #2e7df0, #665ee8); }
+    .gateway-kicker { color: #91a8bc; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .gateway-title { margin-top: 4px; font-size: 16px; font-weight: 900; }
+    .gateway-desc { margin-top: 5px; color: #b8c7d4; font-size: 10px; line-height: 1.5; }
+    .gateway-arrow { color: #83e3dc; font-size: 21px; }
+    .gateway-link.report .gateway-arrow { color: #8fb8ff; }
+    .workflow-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 42px 4px 14px; }
+    .workflow-intro h2 { margin: 4px 0 0; font-size: clamp(23px, 3vw, 34px); letter-spacing: -.035em; }
+    .workflow-intro p { max-width: 570px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; text-align: right; }
+    .report-intro {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 44px 4px 14px;
+      scroll-margin-top: 96px;
+    }
+    .report-intro h2 { margin: 4px 0 0; font-size: clamp(24px, 3.5vw, 38px); letter-spacing: -.04em; }
+    .report-intro p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .dashboard-intro {
+      position: relative;
+      overflow: hidden;
+      min-height: 126px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 24px 28px;
+      border: 1px solid #e6edf7;
+      border-radius: 24px;
+      background: linear-gradient(108deg, #ffffff 0%, #f8fbff 58%, #e8f1ff 100%);
+      box-shadow: 0 16px 34px rgba(35, 62, 93, .11);
+    }
+    .dashboard-intro::after {
+      position: absolute;
+      width: 260px;
+      height: 150px;
+      top: -62px;
+      right: 2%;
+      border-radius: 50%;
+      background: rgba(75, 129, 255, .11);
+      filter: blur(24px);
+      content: "";
+    }
+    .dashboard-intro-content { position: relative; z-index: 1; }
+    .dashboard-intro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 10px;
+      color: #1c63d5;
+      border: 1px solid #cfe0fa;
+      border-radius: 999px;
+      background: rgba(255,255,255,.86);
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: .05em;
+    }
+    .dashboard-intro-badge::before { width: 6px; height: 6px; border-radius: 50%; background: #377cf0; content: ""; }
+    .dashboard-intro-title { margin: 9px 0 0; color: #121c2c; font-size: clamp(24px, 3vw, 34px); line-height: 1.15; letter-spacing: -.04em; }
+    .dashboard-intro-desc { margin: 7px 0 0; color: #67788d; font-size: 12px; font-weight: 650; }
+    .dashboard-control {
+      display: grid;
+      gap: 14px;
+      padding-top: 2px;
+      scroll-margin-top: 92px;
+    }
+    .date-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .date-summary-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 96px;
+      padding: 18px 20px;
+      border: 1px solid rgba(20,57,86,.08);
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 9px 26px rgba(18,40,68,.06);
+    }
+    .date-summary-card::before {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--date-accent, var(--blue-500));
+      content: "";
+    }
+    .date-summary-role { color: var(--date-accent, var(--blue-600)); font-size: 10px; font-weight: 950; letter-spacing: .08em; }
+    .date-summary-value { margin-top: 9px; color: #142438; font-size: clamp(17px, 2vw, 23px); font-weight: 950; letter-spacing: -.025em; }
+    .date-summary-range { margin-top: 4px; color: #7b8999; font-size: 10px; font-weight: 750; }
+    .dashboard-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid rgba(20,57,86,.08);
+      border-radius: 15px;
+      background: white;
+      box-shadow: 0 8px 22px rgba(18,40,68,.05);
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr);
+      gap: 20px;
+      margin-bottom: 20px;
+      scroll-margin-top: 92px;
+    }
+    .hero-copy, .upload-card, .panel, .kpi-card {
+      border: 1px solid rgba(20, 57, 86, .08);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .hero-copy {
+      position: relative;
+      overflow: hidden;
+      min-height: 264px;
+      padding: clamp(28px, 4vw, 48px);
+      color: white;
+      background:
+        linear-gradient(120deg, rgba(23,105,224,.18), transparent 48%),
+        var(--navy-900);
+    }
+    .hero-copy::after {
+      position: absolute;
+      right: -60px;
+      bottom: -105px;
+      width: 300px;
+      height: 300px;
+      border: 38px solid rgba(32,185,200,.16);
+      border-radius: 50%;
+      content: "";
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 17px;
+      color: #88e2e6;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { width: 24px; height: 2px; background: currentColor; content: ""; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(30px, 4.2vw, 58px); line-height: 1.08; letter-spacing: -.04em; }
+    .hero-copy p { max-width: 700px; margin: 20px 0 0; color: #bdd0e0; font-size: 15px; line-height: 1.75; }
+    .privacy-note { display: flex; gap: 9px; align-items: center; margin-top: 22px; color: #8de1c3; font-size: 12px; font-weight: 700; }
+    .privacy-note .dot { width: 8px; height: 8px; border-radius: 50%; background: #61dcae; box-shadow: 0 0 0 5px rgba(97,220,174,.12); }
+
+    .upload-card { padding: 20px; }
+    .section-kicker { color: var(--blue-600); font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .upload-title { margin: 5px 0 15px; font-size: 20px; letter-spacing: -.025em; }
+    .upload-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 10px; }
+    .field, .compact-select, .date-input, .search-input {
+      width: 100%;
+      min-height: 42px;
+      padding: 0 12px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+    }
+    .field:focus, .compact-select:focus, .date-input:focus, .search-input:focus, textarea:focus {
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 3px rgba(46,125,240,.12);
+    }
+    .dropzone {
+      display: grid;
+      place-items: center;
+      min-height: 136px;
+      padding: 20px;
+      text-align: center;
+      border: 1.5px dashed #a8b8c9;
+      border-radius: 15px;
+      background: #f8fafc;
+      transition: .2s ease;
+      cursor: pointer;
+    }
+    .dropzone:hover, .dropzone.is-dragging { border-color: var(--cyan-500); background: #effcfc; transform: translateY(-1px); }
+    .drop-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 10px; border-radius: 14px; color: var(--blue-600); background: #eaf2ff; font-size: 23px; font-weight: 800; }
+    .drop-main { font-size: 14px; font-weight: 800; }
+    .drop-sub { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    #fileInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .upload-summary { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .remote-box {
+      margin-top: 11px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfcfe;
+    }
+    .remote-box summary {
+      color: #3f5267;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      user-select: none;
+    }
+    .remote-grid { display: grid; grid-template-columns: 1fr; gap: 7px; margin-top: 11px; }
+    .remote-row { display: grid; grid-template-columns: 74px minmax(0, 1fr); align-items: center; gap: 8px; }
+    .remote-label { color: var(--muted); font-size: 10px; font-weight: 900; }
+    .remote-input { min-height: 37px; padding: 0 10px; font-size: 11px; }
+    .remote-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; }
+    .check-label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 700; }
+    .remote-note { margin-top: 8px; color: #8a5a25; font-size: 9px; line-height: 1.5; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #4c5c6e;
+      background: #edf2f6;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .pill.blue { color: #1657ad; background: #e7f0ff; }
+    .pill.green { color: #146c50; background: var(--green-100); }
+    .pill.orange { color: #a24f20; background: #fff0e5; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 24px 0 14px;
+    }
+    .toolbar-left, .toolbar-right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .segmented { display: inline-flex; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .segment {
+      min-height: 34px;
+      padding: 0 13px;
+      border: 0;
+      border-radius: 9px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .segment.active { color: white; background: var(--navy-800); }
+    .date-wrap { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .date-input { width: auto; min-height: 38px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 39px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      background: white;
+      font-size: 12px;
+      font-weight: 800;
+      transition: .16s ease;
+    }
+    .btn:hover { transform: translateY(-1px); border-color: #b8c8d8; box-shadow: 0 5px 14px rgba(20,45,70,.08); }
+    .btn.primary { color: white; border-color: var(--blue-600); background: var(--blue-600); }
+    .btn.dark { color: white; border-color: var(--navy-800); background: var(--navy-800); }
+    .btn.danger { color: var(--red-600); background: #fff; }
+    .btn.small { min-height: 31px; padding: 0 9px; font-size: 11px; }
+    .icon { font-size: 14px; line-height: 1; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+    .kpi-card { position: relative; overflow: hidden; padding: 19px; box-shadow: 0 8px 24px rgba(18,40,68,.06); }
+    .kpi-card::before { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: var(--accent, var(--blue-500)); content: ""; }
+    .kpi-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+    .kpi-value { margin-top: 10px; font-size: clamp(23px, 3vw, 34px); font-weight: 900; letter-spacing: -.04em; }
+    .kpi-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .change { font-weight: 900; }
+    .change.up { color: var(--blue-600); }
+    .change.down { color: var(--red-600); }
+    .change.flat { color: var(--muted); }
+
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+    .panel { min-width: 0; padding: 20px; box-shadow: 0 9px 26px rgba(18,40,68,.06); }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .panel-title { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+    .panel-desc { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .chart-wrap { position: relative; min-height: 280px; }
+    canvas { width: 100%; height: 280px; display: block; }
+    .empty-state {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      padding: 30px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      background: #fafbfd;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .table-panel { margin-top: 14px; }
+    .table-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .search-input { width: 210px; min-height: 36px; font-size: 12px; }
+    .daily-view-main { min-height: calc(100vh - 72px); }
+    .daily-control-panel {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+      padding: 15px 17px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(255,255,255,.92);
+      box-shadow: var(--shadow-soft);
+    }
+    .daily-control-left,
+    .daily-control-right {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .daily-type-tabs {
+      display: inline-grid;
+      grid-template-columns: repeat(2, minmax(112px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid #dce6f1;
+      border-radius: 12px;
+      background: #f5f8fc;
+    }
+    .daily-type-button {
+      min-height: 34px;
+      padding: 0 16px;
+      color: #66768a;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .daily-type-button.active[data-daily-type="nonbrand"] {
+      color: #075b67;
+      background: #dff8fa;
+      box-shadow: 0 5px 14px rgba(32,185,200,.14);
+    }
+    .daily-type-button.active[data-daily-type="brand"] {
+      color: #9b4e18;
+      background: #fff0e2;
+      box-shadow: 0 5px 14px rgba(242,139,69,.14);
+    }
+    .daily-week-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .daily-week-wrap label {
+      color: #607187;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .daily-week-select { min-width: 250px; }
+    .daily-range-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      color: #31506f;
+      border: 1px solid #d9e7f4;
+      border-radius: 999px;
+      background: #f6faff;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .daily-panel { margin-top: 0; }
+    .daily-panel.nonbrand { border-top: 4px solid #20b9c8; }
+    .daily-panel.brand { border-top: 4px solid #f28b45; }
+    .daily-table { min-width: 980px; }
+    .daily-table th,
+    .daily-table td { min-width: 102px; }
+    .daily-table th:first-child,
+    .daily-table td:first-child {
+      left: 0;
+      min-width: 240px;
+      text-align: left;
+    }
+    .daily-table tbody td:first-child {
+      position: sticky;
+      z-index: 1;
+      background: white;
+      font-weight: 900;
+    }
+    .daily-table th:last-child {
+      color: #fff;
+      border-left: 3px solid rgba(255, 255, 255, 0.42);
+      background: linear-gradient(135deg, #2252a3, #1674d8);
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      box-shadow: -5px 0 14px rgba(22, 83, 155, 0.12);
+    }
+    .daily-table td:last-child {
+      color: #164f93;
+      border-left: 3px solid #4c91e7;
+      background: #eaf4ff;
+      font-weight: 950;
+      box-shadow: -5px 0 14px rgba(22, 83, 155, 0.08);
+    }
+    .daily-panel.nonbrand .daily-table th:last-child {
+      background: linear-gradient(135deg, #088b9b, #20b9c8);
+    }
+    .daily-panel.nonbrand .daily-table td:last-child {
+      color: #087884;
+      border-left-color: #20b9c8;
+      background: #e9fbfc;
+    }
+    .daily-panel.brand .daily-table th:last-child {
+      background: linear-gradient(135deg, #d8661f, #f28b45);
+    }
+    .daily-panel.brand .daily-table td:last-child {
+      color: #a84c13;
+      border-left-color: #f28b45;
+      background: #fff1e7;
+    }
+    .daily-day-head {
+      display: grid;
+      gap: 2px;
+      justify-items: end;
+    }
+    .daily-day-name { color: #74859a; font-size: 9px; font-weight: 900; }
+    .daily-day-date { color: #1c3148; font-size: 11px; font-weight: 950; }
+    .daily-empty {
+      padding: 36px 18px !important;
+      color: var(--muted);
+      text-align: center !important;
+      font-weight: 800;
+    }
+    .weekly-comment-grid { display: grid; gap: 9px; margin-bottom: 14px; }
+    .weekly-comment-card {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr);
+      align-items: center;
+      gap: 13px;
+      min-height: 50px;
+      padding: 11px 14px;
+      border: 1px solid #e1e9f1;
+      border-left: 4px solid var(--comment-color);
+      border-radius: 13px;
+      background: var(--comment-bg);
+    }
+    .weekly-comment-card.nonbrand { --comment-color: #20b9c8; --comment-bg: #f1fbfc; }
+    .weekly-comment-card.brand { --comment-color: #f28b45; --comment-bg: #fff8f1; }
+    .weekly-comment-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #26394f;
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+    .weekly-comment-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 7px;
+      min-width: 0;
+      color: #526377;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+    .weekly-comment-line strong { font-weight: 950; }
+    .weekly-comment-driver { color: #34485f; }
+    .weekly-comment-empty { padding: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; font-size: 11px; }
+    .table-scroll { overflow: auto; max-height: 620px; border: 1px solid var(--line); border-radius: 13px; }
+    table { width: 100%; min-width: 1500px; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    th, td { padding: 11px 12px; text-align: right; border-bottom: 1px solid #e7edf3; white-space: nowrap; }
+    th {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      color: #536477;
+      background: #f5f8fb;
+      font-size: 10px;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    th:first-child, td:first-child { position: sticky; left: 0; text-align: left; }
+    th:first-child { z-index: 3; background: #edf3f8; }
+    td:first-child { background: #fff; }
+    tr:hover td { background: #f9fbfd; }
+    tr:hover td:first-child { background: #f4f8fb; }
+    .week-head { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .week-date { color: #2f4053; font-size: 11px; font-weight: 900; letter-spacing: -.01em; text-transform: none; }
+    .week-role {
+      display: inline-flex;
+      padding: 2px 7px;
+      border-radius: 999px;
+      color: #607083;
+      background: #e8eef4;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    .week-role.current { color: #1657ad; background: #e7f0ff; }
+    .week-role.month { color: #a24f20; background: #fff0e5; }
+    .keyword-group td {
+      position: static !important;
+      padding: 11px 14px;
+      text-align: left !important;
+      border-bottom: 1px solid #dce5ed;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: -.01em;
+    }
+    .keyword-group.brand td { color: #934919; background: #fff4e9 !important; }
+    .keyword-group.nonbrand td { color: #12727e; background: #eaf9fb !important; }
+    .keyword-group-count { margin-left: 8px; font-size: 10px; font-weight: 800; opacity: .72; }
+    .monthly-table { min-width: 1580px; }
+    .monthly-panel { margin-top: 14px; }
+    .month-head { min-width: 92px; text-align: right; }
+    .month-total-head { min-width: 112px; color: #1657ad; background: #eaf2ff; }
+    .month-total-cell { color: #1657ad; background: #f4f8ff; font-weight: 900; }
+    .month-empty { color: #adb7c2; }
+    .monthly-source-note { color: #516377; font-weight: 700; }
+    .monthly-grand-total td {
+      color: #143d72;
+      background: #eaf2ff !important;
+      font-weight: 950;
+      border-bottom: 2px solid #c7d9f2;
+    }
+    .monthly-subtotal td { font-weight: 900; border-bottom: 2px solid #dce5ed; }
+    .monthly-subtotal.brand td { color: #8d4619; background: #fffaf4 !important; }
+    .monthly-subtotal.nonbrand td { color: #116f79; background: #f3fbfc !important; }
+    .monthly-summary-label { display: flex; align-items: center; gap: 8px; }
+    th.index-column { color: #14737d; background: #eaf8fa; }
+    td.index-cell {
+      color: #14737d;
+      background: #f4fbfc;
+      font-size: 12px;
+      font-weight: 950;
+    }
+    td.index-cell.num-up { color: var(--blue-600); }
+    td.index-cell.num-down { color: var(--red-600); }
+    .index-na { color: #a2aebb; font-weight: 700; }
+    .keyword-cell { display: flex; align-items: center; gap: 9px; font-weight: 800; }
+    .type-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--cyan-500); }
+    .type-dot.brand { background: var(--orange-500); }
+    .status {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 56px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .status.up { color: var(--blue-600); background: #e7f0ff; }
+    .status.down { color: var(--red-600); background: var(--red-100); }
+    .status.flat { color: #667487; background: #edf2f6; }
+    .num-up { color: var(--blue-600); font-weight: 800; }
+    .num-down { color: var(--red-600); font-weight: 800; }
+
+    .sheet-dialog {
+      width: min(620px, calc(100% - 28px));
+      padding: 0;
+      color: var(--ink);
+      border: 0;
+      border-radius: 20px;
+      background: white;
+      box-shadow: 0 28px 80px rgba(7,24,39,.28);
+    }
+    .sheet-dialog::backdrop { background: rgba(5,18,30,.52); backdrop-filter: blur(3px); }
+    .sheet-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 23px 24px 17px; border-bottom: 1px solid var(--line); }
+    .sheet-dialog-title { margin: 4px 0 0; font-size: 23px; letter-spacing: -.035em; }
+    .sheet-dialog-body { display: grid; gap: 13px; padding: 20px 24px 24px; }
+    .sheet-field { display: grid; gap: 7px; }
+    .sheet-field span { color: #45586e; font-size: 11px; font-weight: 900; }
+    .sheet-field small { color: #8996a5; font-size: 9px; line-height: 1.5; }
+    .sheet-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+    .sheet-status { padding: 10px 12px; color: #41637b; border-radius: 10px; background: #eef7fb; font-size: 10px; font-weight: 800; line-height: 1.5; }
+
+    .drawer {
+      position: fixed;
+      z-index: 50;
+      top: 0;
+      right: 0;
+      width: min(620px, 100%);
+      height: 100vh;
+      overflow: auto;
+      padding: 26px;
+      background: white;
+      box-shadow: -22px 0 56px rgba(5,23,38,.2);
+      transform: translateX(105%);
+      transition: transform .26s ease;
+    }
+    .drawer.open { transform: translateX(0); }
+    .backdrop {
+      position: fixed;
+      z-index: 45;
+      inset: 0;
+      background: rgba(5,18,30,.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+    }
+    .backdrop.open { opacity: 1; pointer-events: auto; }
+    .drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+    .drawer h2 { margin: 0; font-size: 24px; }
+    .drawer p { color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .settings-card { padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: #fafbfd; }
+    .settings-card label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 900; }
+    textarea {
+      width: 100%;
+      min-height: 310px;
+      resize: vertical;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      background: white;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .unmatched-list { display: grid; gap: 7px; margin-top: 15px; }
+    .unmatched-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 7px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; }
+    .unmatched-keyword { overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 800; white-space: nowrap; }
+
+    .toast {
+      position: fixed;
+      z-index: 80;
+      right: 22px;
+      bottom: 22px;
+      max-width: min(420px, calc(100% - 44px));
+      padding: 13px 16px;
+      color: white;
+      background: var(--navy-900);
+      border-radius: 12px;
+      box-shadow: 0 14px 34px rgba(7,24,39,.24);
+      opacity: 0;
+      transform: translateY(14px);
+      pointer-events: none;
+      transition: .22s ease;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: #9b3030; }
+    .footer { margin-top: 22px; color: #7e8b9a; text-align: center; font-size: 10px; line-height: 1.7; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 980px) {
+      .portal-layout { grid-template-columns: 1fr; }
+      .portal-sidebar {
+        position: sticky;
+        height: auto;
+        padding: 10px 12px;
+        border-right: 0;
+        border-bottom: 1px solid #e3ebf4;
+      }
+      .sidebar-brand { padding: 0 2px 8px; }
+      .sidebar-division, .sidebar-user, .nav-section-label { display: none; }
+      .portal-nav { display: flex; overflow-x: auto; padding-bottom: 1px; }
+      .portal-nav-button { flex: 0 0 auto; width: auto; min-width: 130px; }
+      .landing-view { min-height: calc(100vh - 104px); }
+      .landing-inner { grid-template-columns: 1fr; min-height: auto; padding: 54px 0; }
+      .landing-copy { max-width: 680px; }
+      .landing-preview { width: min(620px, 100%); margin: 0 auto; transform: none; }
+      .date-summary-grid { grid-template-columns: 1fr; }
+      .hero, .dashboard-grid { grid-template-columns: 1fr; }
+      .gateway-grid { grid-template-columns: 1fr; width: min(560px, 100%); }
+      .workflow-intro, .report-intro { align-items: flex-start; flex-direction: column; }
+      .workflow-intro p { text-align: left; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .settings-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .portal-sidebar { padding-inline: 8px; }
+      .sidebar-brand-sub { display: none; }
+      .portal-nav-button { min-width: 118px; min-height: 36px; }
+      .landing-view { padding: 22px 18px 42px; }
+      .landing-inner { gap: 38px; padding: 35px 0; }
+      .landing-title { font-size: clamp(37px, 12vw, 54px); }
+      .dashboard-toolbar { align-items: stretch; flex-direction: column; }
+      .landing-preview { min-height: 350px; padding: 14px; border-radius: 20px; }
+      .preview-chart-card { height: 176px; }
+      .preview-line.blue-a { top: 119px; }
+      .preview-line.blue-b { top: 94px; }
+      .preview-line.blue-c { top: 101px; }
+      .preview-line.cyan-a { top: 113px; }
+      .preview-line.cyan-b { top: 93px; }
+      .preview-line.cyan-c { top: 76px; }
+      .preview-line.orange-a { top: 87px; }
+      .preview-line.orange-b { top: 102px; }
+      .preview-line.orange-c { top: 95px; }
+      .topbar { padding-inline: 15px; }
+      .brand-sub, .top-actions .secondary-action { display: none; }
+      .container { width: min(100% - 20px, 1480px); padding-top: 14px; }
+      .dashboard-intro { min-height: 118px; padding: 21px 20px; border-radius: 19px; }
+      .dashboard-intro-desc { line-height: 1.6; }
+      .portal-hero { min-height: 520px; padding-inline: 17px; border-radius: 21px; }
+      .gateway-link { grid-template-columns: 43px minmax(0, 1fr) auto; min-height: 102px; padding: 15px; }
+      .gateway-icon { width: 43px; height: 43px; }
+      .hero-copy { min-height: auto; padding: 27px 22px; }
+      .upload-controls, .kpi-grid { grid-template-columns: 1fr; }
+      .toolbar, .toolbar-left, .toolbar-right { align-items: stretch; }
+      .toolbar { flex-direction: column; }
+      .date-wrap { justify-content: space-between; }
+      .date-input, .search-input { width: 100%; }
+      .panel { padding: 15px; }
+      .daily-control-left, .daily-control-right, .daily-week-wrap { width: 100%; }
+      .daily-type-tabs { width: 100%; }
+      .daily-week-wrap { align-items: stretch; flex-direction: column; }
+      .daily-week-select { width: 100%; min-width: 0; }
+      .daily-range-pill { justify-content: center; width: 100%; }
+      .weekly-comment-card { grid-template-columns: 1fr; gap: 5px; }
+      .drawer { padding: 20px 15px; }
+    }
+  #settingsBtn,#dailySettingsBtn,#rawSheetLink,#sheetDialog{display:none!important}</style>
+</head>
+<body>
+  <div class="portal-layout">
+    <div class="portal-main">
+      <section class="portal-view landing-view active" id="homeView" aria-labelledby="landingTitle">
+        <div class="landing-inner">
+          <div class="landing-copy">
+            <div class="landing-badge">NAVER TREND ANALYTICS</div>
+            <h1 class="landing-title" id="landingTitle">네이버 키워드<span>트렌드 대시보드</span></h1>
+            <p class="landing-description">브랜드·비브랜드 38개 키워드의 일별·월별 검색 쿼리와 최근 8주 추이, 주차별 성과를 확인하세요.</p>
+            <p class="landing-note">일자별 월~일 조회 · 월별 데이터 2022~2026년 · 최근 8주 및 전주·전월 비교</p>
+            <button class="landing-cta" id="openDashboardBtn" type="button"><span aria-hidden="true">▥</span> 대시보드 보기</button>
+            <div><a class="landing-raw-link" id="rawSheetLink" href="/dashboard.html" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span> 네이버 API 데이터 상태</a></div>
+          </div>
+          <div class="landing-preview" aria-label="대시보드 미리보기">
+            <div class="preview-live">DASHBOARD LIVE PREVIEW</div>
+            <div class="preview-kpis" aria-hidden="true">
+              <div class="preview-kpi" style="--preview-accent:#2e7df0"></div>
+              <div class="preview-kpi" style="--preview-accent:#715ae8"></div>
+              <div class="preview-kpi" style="--preview-accent:#20b9c8"></div>
+              <div class="preview-kpi" style="--preview-accent:#10233b"></div>
+            </div>
+            <div class="preview-chart-card" aria-hidden="true">
+              <div class="preview-chart-title"></div>
+              <div class="preview-grid-line"></div>
+              <div class="preview-grid-line"></div>
+              <span class="preview-line blue-a"></span><span class="preview-line blue-b"></span><span class="preview-line blue-c"></span>
+              <span class="preview-line cyan-a"></span><span class="preview-line cyan-b"></span><span class="preview-line cyan-c"></span>
+              <span class="preview-line orange-a"></span><span class="preview-line orange-b"></span><span class="preview-line orange-c"></span>
+            </div>
+            <div class="preview-table-card" aria-hidden="true">
+              <div class="preview-table-title"></div>
+              <div class="preview-table-row"></div>
+              <div class="preview-table-row"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="portal-view app-shell" id="dashboardView">
+    <div class="minimal-top-actions">
+      <button class="btn dark" id="settingsBtn"><span class="icon">⚙</span> 키워드 설정</button>
+    </div>
+
+    <main class="container">
+      <section class="dashboard-intro" aria-labelledby="dashboardIntroTitle">
+        <div class="dashboard-intro-content">
+          <div class="dashboard-intro-badge">NAVER TREND INTELLIGENCE</div>
+          <h1 class="dashboard-intro-title" id="dashboardIntroTitle">네이버 키워드 트렌드 모니터링 대시보드</h1>
+          <p class="dashboard-intro-desc">삼성화재 브랜드·비브랜드 키워드의 일별·월별 쿼리와 최근 8주 추이, 주차별 성과를 확인할 수 있습니다.</p>
+        </div>
+      </section>
+      <section class="dashboard-control" id="performance-report" aria-label="보고서 기준일과 필터">
+        <div class="date-summary-grid">
+          <article class="date-summary-card" style="--date-accent:#2e7df0">
+            <div class="date-summary-role">금주</div>
+            <div class="date-summary-value" id="currentWeekDate">—</div>
+            <div class="date-summary-range" id="currentWeekRange">—</div>
+          </article>
+          <article class="date-summary-card" style="--date-accent:#20b9c8">
+            <div class="date-summary-role">전주</div>
+            <div class="date-summary-value" id="previousWeekDate">—</div>
+            <div class="date-summary-range" id="previousWeekRange">—</div>
+          </article>
+          <article class="date-summary-card" style="--date-accent:#f28b45">
+            <div class="date-summary-role">전월</div>
+            <div class="date-summary-value" id="previousMonthDate">—</div>
+            <div class="date-summary-range" id="previousMonthRange">—</div>
+          </article>
+        </div>
+        <div class="dashboard-toolbar">
+          <div class="toolbar-left">
+            <div class="segmented" role="group" aria-label="키워드 유형">
+              <button class="segment active" data-filter="all">전체</button>
+              <button class="segment" data-filter="nonbrand">비브랜드</button>
+              <button class="segment" data-filter="brand">브랜드</button>
+            </div>
+            <div class="date-wrap">
+              <label for="monthlyYearSelect">월별 연도</label>
+              <select class="date-input" id="monthlyYearSelect" aria-label="월별 데이터 연도"></select>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <a class="btn primary" id="reportDownloadLink" href="#"><span class="icon">↓</span> 월별 CSV 다운로드</a>
+            <a class="btn internal-only" id="internalDashboardLink" href="/dashboard.html" target="_blank" rel="noopener"><span class="icon">↻</span> 내부 수집. 재시도 화면</a>
+            <button class="btn" id="htmlDownloadBtn" type="button"><span class="icon">↓</span> HTML 다운로드</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel monthly-panel" aria-labelledby="monthlyTableTitle">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title" id="monthlyTableTitle">월별 브랜드·비브랜드 키워드 쿼리</h2>
+            <div class="panel-desc monthly-source-note" id="monthlyPeriodDescription">엑셀 일별 원본을 매월 1일~말일까지 합산합니다.</div>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="monthly-table">
+            <thead>
+              <tr id="monthlyHeaderRow">
+                <th>키워드</th>
+                <th class="month-head">1월</th>
+                <th class="month-head">2월</th>
+                <th class="month-head">3월</th>
+                <th class="month-head">4월</th>
+                <th class="month-head">5월</th>
+                <th class="month-head">6월</th>
+                <th class="month-head">7월</th>
+                <th class="month-head">8월</th>
+                <th class="month-head">9월</th>
+                <th class="month-head">10월</th>
+                <th class="month-head">11월</th>
+                <th class="month-head">12월</th>
+                <th class="month-total-head">연간 합계</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyReportBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">최근 8주 쿼리 추이</h2>
+              <div class="panel-desc">브랜드·비브랜드 주차별 합계</div>
+            </div>
+            <span class="pill blue">주간</span>
+          </div>
+          <div class="chart-wrap" id="lineChartWrap">
+            <canvas id="lineChart" width="900" height="280" aria-label="최근 8주 쿼리 추이 차트"></canvas>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">키워드별 주차 성과 비교</h2>
+            <div class="panel-desc">기준 주차 vs 직전 주차 · 기준 주차 vs 4주 전 동일 요일 구간 · NAVER API 데이터 갱신 시 코멘트 자동 재계산</div>
+          </div>
+          <div class="table-tools">
+            <div class="date-wrap">
+              <label for="reportDate">기준 주차</label>
+              <select class="date-input" id="reportDate" aria-label="기준 주차"></select>
+            </div>
+            <button class="btn primary" id="openDailyViewBtn" type="button"><span class="icon">▦</span> 일자별 쿼리</button>
+            <input class="search-input" id="keywordSearch" type="search" placeholder="키워드 검색" aria-label="키워드 검색" />
+            <span class="pill" id="visibleKeywordCount">0개 키워드</span>
+          </div>
+        </div>
+        <div class="weekly-comment-grid" id="weeklyCommentGrid" aria-label="브랜드 및 비브랜드 주차 성과 코멘트"></div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>키워드</th>
+                <th id="currentWeekHeader"><span class="week-head"><span class="week-date">기준 주차</span><span class="week-role current">금주</span></span></th>
+                <th class="index-column">금주 지수</th>
+                <th id="previousWeekHeader"><span class="week-head"><span class="week-date">직전 주차</span><span class="week-role">전주</span></span></th>
+                <th class="index-column">전주 지수</th>
+                <th>전주 쿼리 증감</th>
+                <th class="index-column">전주 지수 증감</th>
+                <th>전주 증감률</th>
+                <th id="fourWeeksHeader"><span class="week-head"><span class="week-date">4주 전</span><span class="week-role month">전월</span></span></th>
+                <th class="index-column">전월 지수</th>
+                <th>전월 쿼리 증감</th>
+                <th class="index-column">전월 지수 증감</th>
+                <th>전월 증감률</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <p class="footer">Copyright. yoojuyoung625@mindknock.com</p>
+    </main>
+      </div>
+
+      <div class="portal-view app-shell" id="dailyView">
+        <div class="minimal-top-actions">
+          <button class="btn dark" id="dailySettingsBtn"><span class="icon">⚙</span> 키워드 설정</button>
+          <button class="daily-close-button" id="backToDashboardBtn" type="button" aria-label="대시보드로 돌아가기" title="대시보드로 돌아가기">×</button>
+        </div>
+
+        <main class="container daily-view-main">
+          <section class="dashboard-intro" aria-labelledby="dailyViewTitle">
+            <div class="dashboard-intro-content">
+              <div class="dashboard-intro-badge">DAILY QUERY MONITOR</div>
+              <h1 class="dashboard-intro-title" id="dailyViewTitle">일자별 브랜드·비브랜드 키워드 쿼리</h1>
+              <p class="dashboard-intro-desc">브랜드 또는 비브랜드를 선택하고 원하는 주차의 월요일~일요일 쿼리를 확인할 수 있습니다.</p>
+            </div>
+          </section>
+
+          <section class="daily-control-panel" aria-label="일자별 쿼리 조회 조건">
+            <div class="daily-control-left">
+              <div class="daily-type-tabs" role="group" aria-label="키워드 구분">
+                <button class="daily-type-button active" type="button" data-daily-type="nonbrand">비브랜드</button>
+                <button class="daily-type-button" type="button" data-daily-type="brand">브랜드</button>
+              </div>
+              <div class="daily-week-wrap">
+                <label for="dailyWeekSelect">조회 주차</label>
+                <select class="date-input daily-week-select" id="dailyWeekSelect" aria-label="일자별 조회 주차"></select>
+              </div>
+            </div>
+            <div class="daily-control-right">
+              <span class="daily-range-pill" id="dailyRangePill">월~일</span>
+              <span class="pill" id="dailyKeywordCount">0개 키워드</span>
+            </div>
+          </section>
+
+          <section class="panel daily-panel nonbrand" id="dailyPanel" aria-labelledby="dailyTableTitle">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title" id="dailyTableTitle">비브랜드 일자별 쿼리</h2>
+                <div class="panel-desc" id="dailyTableDescription">선택한 주차의 일별 쿼리만 표시합니다.</div>
+              </div>
+              <span class="pill blue" id="dailyTypePill">비브랜드</span>
+            </div>
+            <div class="table-scroll">
+              <table class="daily-table">
+                <thead id="dailyTableHead"></thead>
+                <tbody id="dailyTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <p class="footer">Copyright. yoojuyoung625@mindknock.com</p>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <dialog class="sheet-dialog" id="sheetDialog" aria-labelledby="sheetDialogTitle">
+    <div class="sheet-dialog-head">
+      <div>
+        <div class="section-kicker">NAVER API Connection</div>
+        <h2 class="sheet-dialog-title" id="sheetDialogTitle">RAW 데이터 연동 설정</h2>
+      </div>
+      <button class="btn" id="closeSheetDialogBtn" type="button">닫기</button>
+    </div>
+    <div class="sheet-dialog-body">
+      <label class="sheet-field">
+        <span>NAVER API 누적 데이터</span>
+        <input class="field" id="googleSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/…" />
+        <small>포털의 ‘RAW 파일 누적’을 누르면 이 문서가 바로 열립니다.</small>
+      </label>
+      <label class="sheet-field">
+        <span>비브랜드 탭 CSV 주소</span>
+        <input class="field" id="nonbrandUrl" type="url" placeholder="내부 운영 화면에서 API 상태를 관리합니다" />
+      </label>
+      <label class="sheet-field">
+        <span>브랜드 탭 CSV 주소</span>
+        <input class="field" id="brandUrl" type="url" placeholder="내부 운영 화면에서 API 상태를 관리합니다" />
+        <small>두 CSV 주소를 등록하면 페이지를 열 때 새 주차 데이터가 자동 반영됩니다.</small>
+      </label>
+      <label class="check-label"><input id="autoSync" type="checkbox" checked /> 대시보드를 열 때 NAVER API 확정 데이터를 자동 조회</label>
+      <div class="sheet-status" id="sheetStatus">현재는 엑셀 원본 데이터가 반영되어 있습니다.</div>
+      <div class="sheet-dialog-actions">
+        <button class="btn" id="sheetOpenBtn" type="button">RAW 시트 열기</button>
+        <button class="btn primary" id="syncUrlBtn" type="button">저장하고 지금 동기화</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="backdrop" id="backdrop"></div>
+  <aside class="drawer" id="settingsDrawer" aria-hidden="true" aria-labelledby="settingsTitle">
+    <div class="drawer-head">
+      <div>
+        <div class="section-kicker">Keyword Master</div>
+        <h2 id="settingsTitle">키워드 설정</h2>
+        <p>서버의 API 키워드 설정과 정확히 일치하는 키워드만 보고서에 반영됩니다. 한 줄에 하나씩 입력하세요.</p>
+      </div>
+      <button class="btn" id="closeSettingsBtn" aria-label="설정 닫기">닫기</button>
+    </div>
+    <div class="settings-grid">
+      <div class="settings-card">
+        <label for="nonbrandKeywords">비브랜드 키워드</label>
+        <textarea id="nonbrandKeywords" spellcheck="false"></textarea>
+      </div>
+      <div class="settings-card">
+        <label for="brandKeywords">브랜드 키워드</label>
+        <textarea id="brandKeywords" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button class="btn" id="restoreKeywordsBtn">기본값 복원</button>
+      <button class="btn primary" id="saveKeywordsBtn">키워드 저장</button>
+    </div>
+    <hr style="margin:26px 0 18px; border:0; border-top:1px solid var(--line);" />
+    <div class="panel-head">
+      <div>
+        <h3 class="panel-title">미분류 키워드</h3>
+        <div class="panel-desc">최근 업로드에서 목록과 일치하지 않아 제외된 키워드</div>
+      </div>
+      <button class="btn small" id="clearUnmatchedBtn">목록 비우기</button>
+    </div>
+    <div class="unmatched-list" id="unmatchedList"></div>
+  </aside>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const WORKBOOK_WEEKLY_DATA = { weeks: [], rows: [] };
+      const WORKBOOK_NONBRAND_INDEX = [];
+      const WORKBOOK_MONTHLY_DATA = { years: [], cutoff: "0000-00-00", source: "NAVER API", rows: [] };
+      const WORKBOOK_DAILY_DATA = { groups: { nonbrand: { dates: [], rows: [] }, brand: { dates: [], rows: [] } } }; /* DAILY_DATA_END */;
+      const WORKBOOK_MONTHLY_MAP = new Map();
+      const WORKBOOK_DAILY_DATE_INDEX = {};
+      const WORKBOOK_DAILY_ROW_MAP = {};
+      ["nonbrand", "brand"].forEach(type => {
+        const group = WORKBOOK_DAILY_DATA.groups[type];
+        WORKBOOK_DAILY_DATE_INDEX[type] = new Map(group.dates.map((date, index) => [date, index]));
+        WORKBOOK_DAILY_ROW_MAP[type] = new Map(group.rows.map(row => [row.keyword, row.values]));
+      });
+      const WORKBOOK_NONBRAND_INDEX_MAP = new Map(WORKBOOK_NONBRAND_INDEX.map(row => [row.keyword, row.values]));
+      const WORKBOOK_NONBRAND_INDEX_BASE = new Map(WORKBOOK_NONBRAND_INDEX.map(row => {
+        const rawRow = WORKBOOK_WEEKLY_DATA.rows.find(item => item.type === "nonbrand" && item.keyword === row.keyword);
+        const base = rawRow && row.values[0] ? rawRow.values[0] / row.values[0] * 100 : null;
+        return [row.keyword, base];
+      }));
+      const WORKBOOK_WEEKLY_RECORDS = WORKBOOK_WEEKLY_DATA.rows.flatMap(row =>
+        WORKBOOK_WEEKLY_DATA.weeks.map((week, index) => ({
+          type: row.type,
+          keyword: row.keyword,
+          date: week.end,
+          value: row.values[index],
+          source: "(마인드노크) 네이버 키워드 쿼리장표_260728.xlsx",
+          importedAt: "2026-07-28T00:00:00.000Z"
+        }))
+      );
+
+      const DEFAULT_NONBRAND = [
+        "자동차보험", "자동차보험료계산", "자동차보험료", "자동차보험료계산기", "자동차보험견적",
+        "자동차책임보험", "자차보험", "인터넷자동차보험", "다이렉트자동차보험", "다이렉트자동차보험비교",
+        "자동차다이렉트", "자동차다이렉트보험", "다이렉트자동차보험비교견적",
+        "다이렉트자동차보험비교견적사이트", "자동차보험료비교견적", "자동차보험료비교",
+        "자동차보험료비교견적사이트", "자동차보험비교사이트", "자동차보험비교견적사이트",
+        "자동차보험비교", "자동차보험다이렉트", "자동차보험비교견적"
+      ];
+      const DEFAULT_BRAND = [
+        "애니카", "삼성화재자동차보험", "삼성자동차보험", "삼성애니카", "삼성화재다이렉트",
+        "애니카다이렉트", "삼성다이렉트자동차보험", "삼성화재다이렉트자동차보험",
+        "삼성자동차다이렉트", "삼성애니카다이렉트", "삼성화재애니카다이렉트", "삼성다이렉트",
+        "삼성화재다이렉트자동차", "삼성다이렉트보험", "삼성화재다이렉트착", "삼성화재"
+      ];
+      const KEYS = {
+        records: "mindknockTrendRecordsV2",
+        keywords: "mindknockTrendKeywordsV2",
+        unmatched: "mindknockTrendUnmatchedV2",
+        imports: "mindknockTrendImportsV2",
+        sources: "mindknockTrendSourcesV1"
+      };
+      const PUBLIC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1WOcABc8xMbIBZW3KGVYkuesRpPF9IEBZxgR3juqPxFQ/edit";
+      const LEGACY_SHEET_URLS = [
+        "https://docs.google.com/spreadsheets/d/1ZImucYBIx8mMr0t3VjuiIKgXrSk39-g_Ow8jMaZfan4/edit?gid=0#gid=0"
+      ];
+      const DEFAULT_SOURCE_CONFIG = {
+        sheetEditUrl: PUBLIC_SHEET_URL,
+        nonbrandUrl: "",
+        brandUrl: "",
+        autoSync: false
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const fmt = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 });
+      const pctFmt = new Intl.NumberFormat("ko-KR", { style: "percent", maximumFractionDigits: 1, minimumFractionDigits: 1 });
+      const indexFmt = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+
+      let records = [];
+      let nonbrandIndexRecordsRef = null;
+      let nonbrandIndexDailyRecordMap = new Map();
+      const nonbrandAnnualIndexBaseCache = new Map();
+      let keywordConfig = loadJson(KEYS.keywords, { nonbrand: DEFAULT_NONBRAND, brand: DEFAULT_BRAND });
+      let unmatched = loadJson(KEYS.unmatched, []);
+      let imports = loadJson(KEYS.imports, [{
+        file: "(마인드노크) 네이버 키워드 쿼리장표_260728.xlsx",
+        importedAt: "2026-07-28T00:00:00.000Z",
+        matchedKeywords: 38,
+        dateMin: "2026-04-19",
+        dateMax: "2026-07-26"
+      }]);
+      let sourceConfig = { ...DEFAULT_SOURCE_CONFIG, ...loadJson(KEYS.sources, {}) };
+      if (!sourceConfig.sheetEditUrl || LEGACY_SHEET_URLS.includes(sourceConfig.sheetEditUrl)) {
+        sourceConfig.sheetEditUrl = DEFAULT_SOURCE_CONFIG.sheetEditUrl;
+      }
+      if (!sourceConfig.nonbrandUrl) sourceConfig.nonbrandUrl = DEFAULT_SOURCE_CONFIG.nonbrandUrl;
+      if (!sourceConfig.brandUrl) sourceConfig.brandUrl = DEFAULT_SOURCE_CONFIG.brandUrl;
+      localStorage.setItem(KEYS.sources, JSON.stringify(sourceConfig));
+      let activeFilter = "all";
+      let dailyType = "nonbrand";
+      let reportRows = [];
+      let monthlyRows = [];
+      let toastTimer = null;
+
+      function loadJson(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch {
+          return fallback;
+        }
+      }
+      function saveState() {
+        try {
+          localStorage.setItem(KEYS.records, JSON.stringify(records));
+          localStorage.setItem(KEYS.keywords, JSON.stringify(keywordConfig));
+          localStorage.setItem(KEYS.unmatched, JSON.stringify(unmatched));
+          localStorage.setItem(KEYS.imports, JSON.stringify(imports.slice(-50)));
+          localStorage.setItem(KEYS.sources, JSON.stringify(sourceConfig));
+        } catch {
+          showToast("브라우저 저장 공간이 부족합니다. 오래된 데이터를 정리해 주세요.", true);
+        }
+      }
+      function showToast(message, isError = false) {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.classList.toggle("error", isError);
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 3600);
+      }
+      function normalizeKeyword(value) {
+        return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+      }
+      function uniqueLines(value) {
+        return [...new Set(String(value).split(/\r?\n/).map(normalizeKeyword).filter(Boolean))];
+      }
+      function dateToIso(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        const d = String(date.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+      function isoToDate(iso) {
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(y, m - 1, d);
+      }
+      function shiftDate(iso, days) {
+        const date = isoToDate(iso);
+        date.setDate(date.getDate() + days);
+        return dateToIso(date);
+      }
+      function monthStart(iso) {
+        const date = isoToDate(iso);
+        return dateToIso(new Date(date.getFullYear(), date.getMonth(), 1));
+      }
+      function monthEnd(iso) {
+        const date = isoToDate(iso);
+        return dateToIso(new Date(date.getFullYear(), date.getMonth() + 1, 0));
+      }
+      function displayMonthLabel(iso) {
+        if (!iso) return "—";
+        const date = isoToDate(iso);
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+      }
+      function previousMonthComparable(iso) {
+        const date = isoToDate(iso);
+        const prevYear = date.getMonth() === 0 ? date.getFullYear() - 1 : date.getFullYear();
+        const prevMonth = date.getMonth() === 0 ? 11 : date.getMonth() - 1;
+        const lastDay = new Date(prevYear, prevMonth + 1, 0).getDate();
+        const endDay = Math.min(date.getDate(), lastDay);
+        return {
+          start: dateToIso(new Date(prevYear, prevMonth, 1)),
+          end: dateToIso(new Date(prevYear, prevMonth, endDay))
+        };
+      }
+      function displayDate(iso) {
+        if (!iso) return "—";
+        const d = isoToDate(iso);
+        return `${d.getMonth() + 1}.${d.getDate()}`;
+      }
+      function displayDateLong(iso) {
+        if (!iso) return "—";
+        const d = isoToDate(iso);
+        return `${String(d.getFullYear()).slice(2)}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+      }
+      function parseDateHeader(value) {
+        const text = String(value ?? "").trim();
+        const match = text.match(/(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})/);
+        if (!match) return null;
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        if (Number.isNaN(date.getTime())) return null;
+        return dateToIso(date);
+      }
+      function parseNumber(value) {
+        const text = String(value ?? "").replace(/,/g, "").trim();
+        if (!text || text === "-" || text === "–" || text === "—") return 0;
+        const num = Number(text.replace(/[^\d.-]/g, ""));
+        return Number.isFinite(num) ? num : null;
+      }
+      function detectDelimiter(text) {
+        const sample = text.split(/\r?\n/).slice(0, 8).join("\n");
+        const options = [",", "\t", ";"];
+        return options
+          .map(delimiter => ({ delimiter, count: sample.split(delimiter).length - 1 }))
+          .sort((a, b) => b.count - a.count)[0].delimiter;
+      }
+      function parseDelimited(text, delimiter) {
+        const rows = [];
+        let row = [];
+        let cell = "";
+        let quoted = false;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const next = text[i + 1];
+          if (char === "\"") {
+            if (quoted && next === "\"") { cell += "\""; i++; }
+            else quoted = !quoted;
+          } else if (char === delimiter && !quoted) {
+            row.push(cell);
+            cell = "";
+          } else if ((char === "\n" || char === "\r") && !quoted) {
+            if (char === "\r" && next === "\n") i++;
+            row.push(cell);
+            if (row.some(value => String(value).trim() !== "")) rows.push(row);
+            row = [];
+            cell = "";
+          } else {
+            cell += char;
+          }
+        }
+        row.push(cell);
+        if (row.some(value => String(value).trim() !== "")) rows.push(row);
+        return rows;
+      }
+      function buildKeywordMaps() {
+        const nonbrand = new Set(keywordConfig.nonbrand.map(normalizeKeyword));
+        const brand = new Set(keywordConfig.brand.map(normalizeKeyword));
+        return { nonbrand, brand };
+      }
+      function classifyKeyword(keyword, forcedType, maps) {
+        if (forcedType === "nonbrand") return maps.nonbrand.has(keyword) ? "nonbrand" : null;
+        if (forcedType === "brand") return maps.brand.has(keyword) ? "brand" : null;
+        if (maps.brand.has(keyword)) return "brand";
+        if (maps.nonbrand.has(keyword)) return "nonbrand";
+        return null;
+      }
+      function locateHeaders(rows) {
+        return rows.map((row, index) => {
+          const dates = row.map(parseDateHeader);
+          const count = dates.filter(Boolean).length;
+          return { index, dates, count };
+        }).filter(item => item.count >= 1);
+      }
+      function locateLongHeader(rows) {
+        for (let rowIndex = 0; rowIndex < Math.min(rows.length, 10); rowIndex++) {
+          const normalized = rows[rowIndex].map(value =>
+            String(value ?? "").replace(/^\uFEFF/, "").replace(/\s+/g, "").trim().toLowerCase()
+          );
+          const keywordIndex = normalized.indexOf("\ud0a4\uc6cc\ub4dc");
+          const dateIndex = normalized.indexOf("\ub0a0\uc9dc");
+          const valueIndex = normalized.findIndex(value =>
+            value === "\uac12" || value === "\ucffc\ub9ac"
+          );
+          if (keywordIndex >= 0 && dateIndex >= 0 && valueIndex >= 0) {
+            return { rowIndex, keywordIndex, dateIndex, valueIndex };
+          }
+        }
+        return null;
+      }
+      function processCsvText(text, sourceName, forcedType, context) {
+        const rows = parseDelimited(text, detectDelimiter(text));
+        const longHeader = locateLongHeader(rows);
+        if (longHeader) {
+          const sourceKeywords = new Set();
+          const sourceDates = [];
+          for (const row of rows.slice(longHeader.rowIndex + 1)) {
+            const keyword = normalizeKeyword(row[longHeader.keywordIndex]);
+            if (!keyword || /^(\ud569\uacc4|total|\ud0a4\uc6cc\ub4dc)$/i.test(keyword)) continue;
+            const date = parseDateHeader(row[longHeader.dateIndex]);
+            const value = parseNumber(row[longHeader.valueIndex]);
+            if (!date || value === null) continue;
+            const type = classifyKeyword(keyword, forcedType, context.maps);
+            if (!type) {
+              if (forcedType) {
+                context.filteredRows++;
+              } else {
+                context.ignoredRows++;
+                const existing = context.unmatchedMap.get(keyword) || { keyword, count: 0 };
+                existing.count += 1;
+                context.unmatchedMap.set(keyword, existing);
+              }
+              continue;
+            }
+            sourceKeywords.add(`${type}|${keyword}`);
+            sourceDates.push(date);
+            context.matchedKeywords.add(`${type}|${keyword}`);
+            const item = {
+              type,
+              keyword,
+              date,
+              value,
+              granularity: "daily",
+              source: sourceName,
+              importedAt: new Date().toISOString()
+            };
+            context.recordMap.set(`${type}|${keyword}|${date}`, item);
+            context.addedOrUpdated++;
+            if (!context.dateMax || date > context.dateMax) context.dateMax = date;
+          }
+          const orderedSourceDates = [...new Set(sourceDates)].sort();
+          imports.push({
+            file: sourceName,
+            importedAt: new Date().toISOString(),
+            matchedKeywords: sourceKeywords.size,
+            dateMin: orderedSourceDates[0] || null,
+            dateMax: orderedSourceDates.at(-1) || null
+          });
+          return;
+        }
+        const headers = locateHeaders(rows);
+        if (!headers.length) throw new Error("날짜 열을 찾지 못했습니다.");
+        let sourceMatched = 0;
+        const allDates = [];
+        headers.forEach((header, headerIndex) => {
+          const nextHeaderIndex = headers[headerIndex + 1]?.index ?? rows.length;
+          const dateColumns = header.dates.map((date, index) => date ? { date, index } : null).filter(Boolean);
+          const orderedDates = [...new Set(dateColumns.map(item => item.date))].sort();
+          allDates.push(...orderedDates);
+          const dateGaps = orderedDates.slice(1).map((date, index) =>
+            Math.round((isoToDate(date) - isoToDate(orderedDates[index])) / 86400000)
+          ).sort((a, b) => a - b);
+          const medianGap = dateGaps.length ? dateGaps[Math.floor(dateGaps.length / 2)] : null;
+          const granularity = medianGap !== null && medianGap <= 2 ? "daily" : "weekly";
+          const dataRows = rows.slice(header.index + 1, nextHeaderIndex);
+          for (const row of dataRows) {
+            const keyword = normalizeKeyword(row[0]);
+            if (!keyword || /^(합계|total|키워드)$/i.test(keyword)) continue;
+            const type = classifyKeyword(keyword, forcedType, context.maps);
+            if (!type) {
+              if (forcedType) {
+                context.filteredRows++;
+              } else {
+                context.ignoredRows++;
+                const existing = context.unmatchedMap.get(keyword) || { keyword, count: 0 };
+                existing.count += 1;
+                context.unmatchedMap.set(keyword, existing);
+              }
+              continue;
+            }
+            sourceMatched++;
+            context.matchedKeywords.add(`${type}|${keyword}`);
+            for (const { date, index } of dateColumns) {
+              const value = parseNumber(row[index]);
+              if (value === null) continue;
+              const item = { type, keyword, date, value, granularity, source: sourceName, importedAt: new Date().toISOString() };
+              context.recordMap.set(`${type}|${keyword}|${date}`, item);
+              context.addedOrUpdated++;
+              if (!context.dateMax || date > context.dateMax) context.dateMax = date;
+            }
+          }
+        });
+        const orderedSourceDates = [...new Set(allDates)].sort();
+        imports.push({
+          file: sourceName,
+          importedAt: new Date().toISOString(),
+          matchedKeywords: sourceMatched,
+          dateMin: orderedSourceDates[0] || null,
+          dateMax: orderedSourceDates.at(-1) || null
+        });
+      }
+      function createImportContext() {
+        return {
+          maps: buildKeywordMaps(),
+          recordMap: new Map(records.map(item => [`${item.type}|${item.keyword}|${item.date}`, item])),
+          unmatchedMap: new Map(unmatched.map(item => [item.keyword, item])),
+          addedOrUpdated: 0,
+          matchedKeywords: new Set(),
+          ignoredRows: 0,
+          filteredRows: 0,
+          dateMax: null
+        };
+      }
+      function finishImport(context, sourceCount, label = "파일") {
+        records = [...context.recordMap.values()].sort((a, b) => a.date.localeCompare(b.date) || a.keyword.localeCompare(b.keyword));
+        unmatched = [...context.unmatchedMap.values()].sort((a, b) => b.count - a.count || a.keyword.localeCompare(b.keyword));
+        saveState();
+        refreshAll(context.dateMax);
+        openSettingsIfUnmatched();
+        showToast(`${sourceCount}개 ${label} 처리 · ${context.matchedKeywords.size}개 키워드 · ${context.addedOrUpdated.toLocaleString("ko-KR")}개 값 반영${context.filteredRows ? ` · 대상 외 ${context.filteredRows}행 자동 제외` : ""}${context.ignoredRows ? ` · 미분류 ${context.ignoredRows}행 제외` : ""}`);
+      }
+      async function syncRemoteSources({ silent = false } = {}) {
+        const sources = [
+          { type: "nonbrand", url: sourceConfig.nonbrandUrl },
+          { type: "brand", url: sourceConfig.brandUrl }
+        ].filter(item => item.url);
+        if (!sources.length) {
+          if (!silent) showToast("동기화할 CSV URL을 먼저 입력해 주세요.", true);
+          return;
+        }
+        const context = createImportContext();
+        let processed = 0;
+        for (const source of sources) {
+          try {
+            const response = await fetch(source.url, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const text = (await response.text()).replace(/^\uFEFF/, "");
+            processCsvText(text, `URL · ${source.type === "brand" ? "브랜드" : "비브랜드"}`, source.type, context);
+            processed++;
+          } catch (error) {
+            if (!silent) showToast(`${source.type === "brand" ? "브랜드" : "비브랜드"} URL을 불러오지 못했습니다. 공개 범위와 CSV 주소를 확인하세요. (${error.message})`, true);
+          }
+        }
+        if (processed) finishImport(context, processed, "URL");
+      }
+      function openSettingsIfUnmatched() {
+        if (unmatched.length && records.length === 0) openSettings();
+      }
+      function getFilteredKeywords() {
+        const query = normalizeKeyword($("#keywordSearch").value).toLowerCase();
+        const rows = [
+          ...keywordConfig.nonbrand.map(keyword => ({ keyword, type: "nonbrand" })),
+          ...keywordConfig.brand.map(keyword => ({ keyword, type: "brand" }))
+        ];
+        return rows.filter(item =>
+          (activeFilter === "all" || item.type === activeFilter) &&
+          (!query || item.keyword.toLowerCase().includes(query))
+        );
+      }
+      function sumFor(keyword, type, start, end) {
+        return records.reduce((sum, item) =>
+          item.keyword === keyword && item.type === type && item.date >= start && item.date <= end
+            ? sum + item.value : sum, 0);
+      }
+      function calcChange(current, previous) {
+        return previous === 0 ? null : (current - previous) / previous;
+      }
+      function buildReportRows(reportDate) {
+        if (!reportDate) return [];
+        const week = { start: shiftDate(reportDate, -6), end: reportDate };
+        const prevWeek = { start: shiftDate(reportDate, -13), end: shiftDate(reportDate, -7) };
+        const fourWeeksAgo = { start: shiftDate(reportDate, -34), end: shiftDate(reportDate, -28) };
+        return getFilteredKeywords().map(item => {
+          const weekNow = sumFor(item.keyword, item.type, week.start, week.end);
+          const weekPrev = sumFor(item.keyword, item.type, prevWeek.start, prevWeek.end);
+          const monthNow = weekNow;
+          const monthPrev = sumFor(item.keyword, item.type, fourWeeksAgo.start, fourWeeksAgo.end);
+          const weekDiff = weekNow - weekPrev;
+          const monthDiff = monthNow - monthPrev;
+          const weekPct = calcChange(weekNow, weekPrev);
+          const monthPct = calcChange(monthNow, monthPrev);
+          const status = weekDiff > 0 ? "up" : weekDiff < 0 ? "down" : "flat";
+          return { ...item, weekNow, weekPrev, weekDiff, weekPct, monthNow, monthPrev, monthDiff, monthPct, status };
+        }).sort((a, b) => b.weekNow - a.weekNow || a.keyword.localeCompare(b.keyword));
+      }
+      function buildMonthlyRows(year) {
+        const selectedYear = String(year || "");
+        if (!selectedYear) return [];
+        return getFilteredKeywords().map(item => {
+          const years = WORKBOOK_MONTHLY_MAP.get(`${item.type}|${item.keyword}`) || {};
+          const sourceMonths = years[selectedYear] || [];
+          const dailyByMonth = Array.from({ length: 12 }, () => []);
+          records.forEach(record => {
+            if (record.type !== item.type || record.keyword !== item.keyword || record.granularity !== "daily" || !record.date.startsWith(`${selectedYear}-`)) return;
+            const monthIndex = Number(record.date.slice(5, 7)) - 1;
+            if (monthIndex >= 0 && monthIndex < 12 && record.date > WORKBOOK_MONTHLY_DATA.cutoff) {
+              dailyByMonth[monthIndex].push(record.value);
+            }
+          });
+          const months = Array.from({ length: 12 }, (_, index) => {
+            if (dailyByMonth[index].length) {
+              return dailyByMonth[index].reduce((sum, value) => sum + value, 0);
+            }
+            const value = sourceMonths[index];
+            return Number.isFinite(value) ? value : null;
+          });
+          const total = months.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0);
+          return { ...item, months, total };
+        }).sort((a, b) => b.total - a.total || a.keyword.localeCompare(b.keyword));
+      }
+      function getAvailableMonthCount(year) {
+        const selectedYear = String(year || "");
+        let latestMonthIndex = -1;
+        WORKBOOK_MONTHLY_DATA.rows.forEach(row => {
+          const months = row.years[selectedYear] || [];
+          months.forEach((value, index) => {
+            if (Number.isFinite(value)) latestMonthIndex = Math.max(latestMonthIndex, index);
+          });
+        });
+        records.forEach(record => {
+          if (record.granularity !== "daily" || !record.date.startsWith(`${selectedYear}-`) || record.date <= WORKBOOK_MONTHLY_DATA.cutoff) return;
+          const monthIndex = Number(record.date.slice(5, 7)) - 1;
+          if (monthIndex >= 0 && monthIndex < 12) latestMonthIndex = Math.max(latestMonthIndex, monthIndex);
+        });
+        return Math.max(1, latestMonthIndex + 1);
+      }
+      function getMonday(date) {
+        const value = isoToDate(date);
+        const offset = (value.getDay() + 6) % 7;
+        value.setDate(value.getDate() - offset);
+        return dateToIso(value);
+      }
+      function getDailyWeekDates(weekStart) {
+        return Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index));
+      }
+      function getAvailableDailyWeeks(type) {
+        const groupDates = WORKBOOK_DAILY_DATA.groups[type]?.dates || [];
+        const sourceDates = new Set(groupDates);
+        records.forEach(record => {
+          if (record.type === type && record.granularity === "daily" && record.date) sourceDates.add(record.date);
+        });
+        return [...new Set([...sourceDates].map(getMonday))].sort();
+      }
+      function getWorkbookDailyValue(type, keyword, date) {
+        const dateIndex = WORKBOOK_DAILY_DATE_INDEX[type]?.get(date);
+        const values = WORKBOOK_DAILY_ROW_MAP[type]?.get(keyword);
+        if (dateIndex === undefined || !values) return null;
+        const value = values[dateIndex];
+        return Number.isFinite(value) ? value : null;
+      }
+      function buildDailyRows(type, weekStart) {
+        if (!weekStart) return [];
+        const dates = getDailyWeekDates(weekStart);
+        const dailyRecordMap = new Map(
+          records
+            .filter(record => record.type === type && record.granularity === "daily" && dates.includes(record.date))
+            .map(record => [`${record.keyword}|${record.date}`, record.value])
+        );
+        return keywordConfig[type].map(keyword => {
+          const values = dates.map(date => {
+            const remoteKey = `${keyword}|${date}`;
+            if (dailyRecordMap.has(remoteKey)) return dailyRecordMap.get(remoteKey);
+            return getWorkbookDailyValue(type, keyword, date);
+          });
+          const availableValues = values.filter(Number.isFinite);
+          const total = availableValues.length
+            ? availableValues.reduce((sum, value) => sum + value, 0)
+            : null;
+          return { type, keyword, values, total };
+        });
+      }
+      function formatDailyWeekOption(weekStart) {
+        const weekEnd = shiftDate(weekStart, 6);
+        const start = isoToDate(weekStart);
+        return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일주차 · ${displayDate(weekStart)}~${displayDate(weekEnd)}`;
+      }
+      function syncDailyWeekOptions(preferredWeek = "") {
+        const select = $("#dailyWeekSelect");
+        const weeks = getAvailableDailyWeeks(dailyType);
+        if (!weeks.length) {
+          select.innerHTML = `<option value="">데이터 필요</option>`;
+          return "";
+        }
+        select.innerHTML = [...weeks].reverse().map(week =>
+          `<option value="${week}">${formatDailyWeekOption(week)}</option>`
+        ).join("");
+        const current = preferredWeek || select.dataset.selectedWeek || "";
+        const selected = weeks.includes(current) ? current : weeks.at(-1);
+        select.value = selected;
+        select.dataset.selectedWeek = selected;
+        return selected;
+      }
+      function renderDailyTable(weekStart) {
+        const dates = weekStart ? getDailyWeekDates(weekStart) : [];
+        const dayNames = ["월", "화", "수", "목", "금", "토", "일"];
+        const typeLabel = dailyType === "brand" ? "브랜드" : "비브랜드";
+        const rows = buildDailyRows(dailyType, weekStart);
+        $("#dailyTableHead").innerHTML = `
+          <tr>
+            <th>키워드</th>
+            ${dates.map((date, index) => `
+              <th>
+                <span class="daily-day-head">
+                  <span class="daily-day-name">${dayNames[index]}</span>
+                  <span class="daily-day-date">${displayDate(date)}</span>
+                </span>
+              </th>
+            `).join("")}
+            <th>TOTAL</th>
+          </tr>
+        `;
+        $("#dailyTableBody").innerHTML = rows.length ? rows.map(row => `
+          <tr>
+            <td>${escapeHtml(row.keyword)}</td>
+            ${row.values.map(value => `<td>${Number.isFinite(value) ? fmt.format(value) : "—"}</td>`).join("")}
+            <td>${Number.isFinite(row.total) ? fmt.format(row.total) : "—"}</td>
+          </tr>
+        `).join("") : `<tr><td class="daily-empty" colspan="9">선택한 기간의 일자별 데이터가 없습니다.</td></tr>`;
+        const panel = $("#dailyPanel");
+        panel.classList.toggle("brand", dailyType === "brand");
+        panel.classList.toggle("nonbrand", dailyType === "nonbrand");
+        $("#dailyTableTitle").textContent = `${typeLabel} 일자별 쿼리`;
+        $("#dailyTableDescription").textContent = weekStart
+          ? `${displayDate(weekStart)}~${displayDate(shiftDate(weekStart, 6))} · 전월·전주 비교 없이 일별 쿼리만 표시합니다.`
+          : "선택한 주차의 일별 쿼리만 표시합니다.";
+        $("#dailyRangePill").textContent = weekStart
+          ? `${weekStart} ~ ${shiftDate(weekStart, 6)}`
+          : "월~일";
+        $("#dailyKeywordCount").textContent = `${rows.length}개 키워드`;
+        const typePill = $("#dailyTypePill");
+        typePill.textContent = typeLabel;
+        typePill.className = `pill ${dailyType === "brand" ? "orange" : "blue"}`;
+      }
+      function refreshDaily(preferredWeek = "") {
+        const week = syncDailyWeekOptions(preferredWeek);
+        renderDailyTable(week);
+      }
+      function formatChange(value) {
+        if (value === null || !Number.isFinite(value)) return "—";
+        if (value < 0) return `△${pctFmt.format(Math.abs(value))}`;
+        const sign = value > 0 ? "+" : "";
+        return `${sign}${pctFmt.format(value)}`;
+      }
+      function formatDelta(value) {
+        if (!Number.isFinite(value)) return "—";
+        if (value < 0) return `△${fmt.format(Math.abs(value))}`;
+        return `${value > 0 ? "+" : ""}${fmt.format(value)}`;
+      }
+      function ensureNonbrandIndexDailyRecordMap() {
+        if (nonbrandIndexRecordsRef === records) return;
+        nonbrandIndexRecordsRef = records;
+        nonbrandIndexDailyRecordMap = new Map(
+          records
+            .filter(record => record.type === "nonbrand" && record.granularity === "daily" && record.date)
+            .map(record => [`${record.keyword}|${record.date}`, record.value])
+        );
+        nonbrandAnnualIndexBaseCache.clear();
+      }
+      function getNonbrandAnnualIndexBase(keyword, baseYear) {
+        if (baseYear === 2025) return WORKBOOK_NONBRAND_INDEX_BASE.get(keyword) || null;
+        if (!Number.isInteger(baseYear) || baseYear < 2026) return null;
+        ensureNonbrandIndexDailyRecordMap();
+        const cacheKey = `${keyword}|${baseYear}`;
+        if (nonbrandAnnualIndexBaseCache.has(cacheKey)) return nonbrandAnnualIndexBaseCache.get(cacheKey);
+        const expectedDays = Math.round((Date.UTC(baseYear + 1, 0, 1) - Date.UTC(baseYear, 0, 1)) / 86400000);
+        let date = `${baseYear}-01-01`;
+        let total = 0;
+        for (let index = 0; index < expectedDays; index++) {
+          const remoteKey = `${keyword}|${date}`;
+          const value = nonbrandIndexDailyRecordMap.has(remoteKey)
+            ? nonbrandIndexDailyRecordMap.get(remoteKey)
+            : getWorkbookDailyValue("nonbrand", keyword, date);
+          if (!Number.isFinite(value)) {
+            nonbrandAnnualIndexBaseCache.set(cacheKey, null);
+            return null;
+          }
+          total += value;
+          date = shiftDate(date, 1);
+        }
+        const base = total > 0 ? total / expectedDays * 7 : null;
+        nonbrandAnnualIndexBaseCache.set(cacheKey, base);
+        return base;
+      }
+      function getNonbrandIndex(keyword, endDate, baseYearOverride = null) {
+        if (!endDate) return null;
+        const reportYear = Number(endDate.slice(0, 4));
+        const baseYear = Number.isInteger(baseYearOverride) ? baseYearOverride : reportYear - 1;
+        const values = WORKBOOK_NONBRAND_INDEX_MAP.get(keyword);
+        const embeddedIndex = WORKBOOK_WEEKLY_DATA.weeks.findIndex(week => week.end === endDate);
+        if (baseYear === 2025 && values && embeddedIndex >= 0 && Number.isFinite(values[embeddedIndex])) {
+          return values[embeddedIndex];
+        }
+        const base = getNonbrandAnnualIndexBase(keyword, baseYear);
+        if (!base) return null;
+        return sumFor(keyword, "nonbrand", shiftDate(endDate, -6), endDate) / base * 100;
+      }
+      function formatIndexDelta(value) {
+        if (!Number.isFinite(value)) return "—";
+        if (value < 0) return `△${indexFmt.format(Math.abs(value))}`;
+        return `${value > 0 ? "+" : ""}${indexFmt.format(value)}`;
+      }
+      function formatIndex(value) {
+        return Number.isFinite(value) ? indexFmt.format(value) : "—";
+      }
+      function renderDateSummary(reportDate) {
+        const currentStart = reportDate ? shiftDate(reportDate, -6) : "";
+        const previousEnd = reportDate ? shiftDate(reportDate, -7) : "";
+        const previousStart = reportDate ? shiftDate(reportDate, -13) : "";
+        const previousMonthEnd = reportDate ? shiftDate(reportDate, -28) : "";
+        const previousMonthStart = previousMonthEnd ? shiftDate(previousMonthEnd, -6) : "";
+        $("#currentWeekDate").textContent = reportDate ? formatWeekStartLabel(reportDate) : "—";
+        $("#currentWeekRange").textContent = reportDate ? `${displayDate(currentStart)}–${displayDate(reportDate)}` : "데이터 필요";
+        $("#previousWeekDate").textContent = previousEnd ? formatWeekStartLabel(previousEnd) : "—";
+        $("#previousWeekRange").textContent = previousEnd ? `${displayDate(previousStart)}–${displayDate(previousEnd)}` : "데이터 필요";
+        $("#previousMonthDate").textContent = previousMonthEnd ? formatWeekStartLabel(previousMonthEnd) : "—";
+        $("#previousMonthRange").textContent = previousMonthEnd ? `${displayDate(previousMonthStart)}–${displayDate(previousMonthEnd)}` : "데이터 필요";
+      }
+      function formatWeekStartLabel(endDate) {
+        if (!endDate) return "—";
+        const start = isoToDate(shiftDate(endDate, -6));
+        return `${start.getMonth() + 1}월 ${start.getDate()}일 주차`;
+      }
+      function updateWeekHeaders(reportDate) {
+        const headers = [
+          { selector: "#currentWeekHeader", date: reportDate, role: "금주", roleClass: "current" },
+          { selector: "#previousWeekHeader", date: reportDate ? shiftDate(reportDate, -7) : "", role: "전주", roleClass: "" },
+          { selector: "#fourWeeksHeader", date: reportDate ? shiftDate(reportDate, -28) : "", role: "전월", roleClass: "month" }
+        ];
+        headers.forEach(item => {
+          $(item.selector).innerHTML = `<span class="week-head"><span class="week-date">${formatWeekStartLabel(item.date)}</span><span class="week-role ${item.roleClass}">${item.role}</span></span>`;
+        });
+      }
+      function renderTable(rows, reportDate) {
+        const body = $("#reportBody");
+        updateWeekHeaders(reportDate);
+        $("#visibleKeywordCount").textContent = `${rows.length}개 키워드`;
+        if (!records.length) {
+          body.innerHTML = `<tr><td colspan="14" style="position:static; text-align:center; padding:42px; color:var(--muted);">API 데이터가 누적되면 키워드별 비교 결과가 표시됩니다.</td></tr>`;
+          return;
+        }
+        if (!rows.length) {
+          body.innerHTML = `<tr><td colspan="14" style="position:static; text-align:center; padding:42px; color:var(--muted);">조건에 맞는 키워드가 없습니다.</td></tr>`;
+          return;
+        }
+        const indexBaseYear = reportDate && /^\d{4}-/.test(reportDate) ? Number(reportDate.slice(0, 4)) - 1 : 2025;
+        const renderRows = groupRows => groupRows.map(row => {
+          const indexNow = row.type === "nonbrand" ? getNonbrandIndex(row.keyword, reportDate, indexBaseYear) : null;
+          const indexPrev = row.type === "nonbrand" ? getNonbrandIndex(row.keyword, shiftDate(reportDate, -7), indexBaseYear) : null;
+          const indexMonth = row.type === "nonbrand" ? getNonbrandIndex(row.keyword, shiftDate(reportDate, -28), indexBaseYear) : null;
+          const indexWeekDiff = Number.isFinite(indexNow) && Number.isFinite(indexPrev) ? indexNow - indexPrev : null;
+          const indexMonthDiff = Number.isFinite(indexNow) && Number.isFinite(indexMonth) ? indexNow - indexMonth : null;
+          return `
+            <tr>
+              <td><div class="keyword-cell"><span class="type-dot ${row.type === "brand" ? "brand" : ""}"></span>${escapeHtml(row.keyword)}</div></td>
+              <td>${fmt.format(row.weekNow)}</td>
+              <td class="index-cell">${Number.isFinite(indexNow) ? formatIndex(indexNow) : `<span class="index-na">—</span>`}</td>
+              <td>${fmt.format(row.weekPrev)}</td>
+              <td class="index-cell">${Number.isFinite(indexPrev) ? formatIndex(indexPrev) : `<span class="index-na">—</span>`}</td>
+              <td class="${row.weekDiff > 0 ? "num-up" : row.weekDiff < 0 ? "num-down" : ""}">${formatDelta(row.weekDiff)}</td>
+              <td class="index-cell ${indexWeekDiff > 0 ? "num-up" : indexWeekDiff < 0 ? "num-down" : ""}">${Number.isFinite(indexWeekDiff) ? formatIndexDelta(indexWeekDiff) : `<span class="index-na">—</span>`}</td>
+              <td class="${row.weekPct > 0 ? "num-up" : row.weekPct < 0 ? "num-down" : ""}">${formatChange(row.weekPct)}</td>
+              <td>${fmt.format(row.monthPrev)}</td>
+              <td class="index-cell">${Number.isFinite(indexMonth) ? formatIndex(indexMonth) : `<span class="index-na">—</span>`}</td>
+              <td class="${row.monthDiff > 0 ? "num-up" : row.monthDiff < 0 ? "num-down" : ""}">${formatDelta(row.monthDiff)}</td>
+              <td class="index-cell ${indexMonthDiff > 0 ? "num-up" : indexMonthDiff < 0 ? "num-down" : ""}">${Number.isFinite(indexMonthDiff) ? formatIndexDelta(indexMonthDiff) : `<span class="index-na">—</span>`}</td>
+              <td class="${row.monthPct > 0 ? "num-up" : row.monthPct < 0 ? "num-down" : ""}">${formatChange(row.monthPct)}</td>
+              <td><span class="status ${row.status}">${row.status === "up" ? "상승" : row.status === "down" ? "하락" : "보합"}</span></td>
+            </tr>
+          `;
+        }).join("");
+        const groups = [
+          { type: "brand", label: "브랜드 키워드", rows: rows.filter(row => row.type === "brand") },
+          { type: "nonbrand", label: "비브랜드 키워드", note: `${indexBaseYear}년 평균=100 지수 별도 열`, rows: rows.filter(row => row.type === "nonbrand") }
+        ].filter(group => group.rows.length);
+        body.innerHTML = groups.map(group => `
+          <tr class="keyword-group ${group.type}">
+            <td colspan="14">${group.label}<span class="keyword-group-count">${group.rows.length}개${group.note ? ` · ${group.note}` : ""}</span></td>
+          </tr>
+          ${renderRows(group.rows)}
+        `).join("");
+      }
+      function renderWeeklyComments(reportDate) {
+        const container = $("#weeklyCommentGrid");
+        if (!reportDate || !records.length) {
+          container.innerHTML = `<div class="weekly-comment-empty">주차 데이터가 연결되면 브랜드·비브랜드 코멘트가 자동 생성됩니다.</div>`;
+          return;
+        }
+        const week = { start: shiftDate(reportDate, -6), end: reportDate };
+        const previousWeek = { start: shiftDate(reportDate, -13), end: shiftDate(reportDate, -7) };
+        const previousMonth = { start: shiftDate(reportDate, -34), end: shiftDate(reportDate, -28) };
+        const trendWord = value => value > 0 ? "증가" : value < 0 ? "감소" : "보합";
+        const trendClass = value => value > 0 ? "num-up" : value < 0 ? "num-down" : "";
+        const summaries = [
+          { type: "nonbrand", label: "비브랜드 쿼리", keywords: keywordConfig.nonbrand },
+          { type: "brand", label: "브랜드 쿼리", keywords: keywordConfig.brand }
+        ].map(group => {
+          const keywordRows = group.keywords.map(keyword => {
+            const weekNow = sumFor(keyword, group.type, week.start, week.end);
+            const weekPrev = sumFor(keyword, group.type, previousWeek.start, previousWeek.end);
+            const monthPrev = sumFor(keyword, group.type, previousMonth.start, previousMonth.end);
+            return { keyword, weekNow, weekPrev, monthPrev, weekDiff: weekNow - weekPrev };
+          });
+          const weekNow = keywordRows.reduce((sum, row) => sum + row.weekNow, 0);
+          const weekPrev = keywordRows.reduce((sum, row) => sum + row.weekPrev, 0);
+          const monthPrev = keywordRows.reduce((sum, row) => sum + row.monthPrev, 0);
+          const weekDiff = weekNow - weekPrev;
+          const monthDiff = weekNow - monthPrev;
+          const driverRows = keywordRows
+            .filter(row => weekDiff >= 0 ? row.weekDiff > 0 : row.weekDiff < 0)
+            .sort((a, b) => weekDiff >= 0 ? b.weekDiff - a.weekDiff : a.weekDiff - b.weekDiff)
+            .slice(0, 2);
+          return {
+            ...group,
+            weekDiff,
+            monthDiff,
+            weekPct: calcChange(weekNow, weekPrev),
+            monthPct: calcChange(weekNow, monthPrev),
+            drivers: driverRows.map(row => row.keyword)
+          };
+        });
+        container.innerHTML = summaries.map(summary => {
+          const driverText = summary.drivers.length
+            ? `<span class="weekly-comment-driver">· ${summary.drivers.map(keyword => `[${escapeHtml(keyword)}]`).join(", ")} ${summary.weekDiff >= 0 ? "증가가 전주 상승 견인" : "감소가 전주 하락에 영향"}</span>`
+            : "";
+          return `
+            <article class="weekly-comment-card ${summary.type}">
+              <div class="weekly-comment-label"><span class="type-dot ${summary.type === "brand" ? "brand" : ""}"></span>${summary.label}</div>
+              <div class="weekly-comment-line">
+                <span>전주 대비 <strong class="${trendClass(summary.weekDiff)}">${formatDelta(summary.weekDiff)}건 (${formatChange(summary.weekPct)}) ${trendWord(summary.weekDiff)}</strong></span>
+                <span>· 전월 대비 <strong class="${trendClass(summary.monthDiff)}">${formatDelta(summary.monthDiff)}건 (${formatChange(summary.monthPct)}) ${trendWord(summary.monthDiff)}</strong></span>
+                ${driverText}
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+      function renderMonthlyTable(rows, year) {
+        const body = $("#monthlyReportBody");
+        const monthCount = getAvailableMonthCount(year);
+        const columnCount = monthCount + 2;
+        const table = body.closest("table");
+        table.style.minWidth = `${Math.max(760, 300 + monthCount * 112)}px`;
+        $("#monthlyHeaderRow").innerHTML = `
+          <th>키워드</th>
+          ${Array.from({ length: monthCount }, (_, index) => `<th class="month-head">${index + 1}월</th>`).join("")}
+          <th class="month-total-head">누적 합계</th>
+        `;
+        const hasSheetDailyData = records.some(record =>
+          record.granularity === "daily" &&
+          record.date.startsWith(`${year}-`) &&
+          record.date > WORKBOOK_MONTHLY_DATA.cutoff
+        );
+        $("#monthlyTableTitle").textContent = `${year}년 월별 브랜드·비브랜드 키워드 쿼리`;
+        $("#monthlyPeriodDescription").textContent = hasSheetDailyData
+          ? `엑셀 일별 원본과 NAVER API 확정 데이터를 ${year}년 1~${monthCount}월까지 월별로 합산했습니다.`
+          : Number(year) === 2026
+            ? `엑셀 일별 원본의 2026년 1~${monthCount}월 데이터를 월별로 합산했습니다. 다음 월 데이터가 들어오면 열이 자동 추가됩니다.`
+            : `엑셀 일별 원본의 ${year}년 1~${monthCount}월 데이터를 매월 1일~말일까지 합산했습니다.`;
+        if (!rows.length) {
+          body.innerHTML = `<tr><td colspan="${columnCount}" style="position:static; text-align:center; padding:42px; color:var(--muted);">조건에 맞는 키워드가 없습니다.</td></tr>`;
+          return;
+        }
+        const monthTotals = groupRows => Array.from({ length: monthCount }, (_, index) =>
+          groupRows.reduce((sum, row) => sum + (Number.isFinite(row.months[index]) ? row.months[index] : 0), 0)
+        );
+        const displayedTotal = values => values.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0);
+        const renderRows = groupRows => groupRows.map(row => {
+          const visibleMonths = row.months.slice(0, monthCount);
+          return `
+          <tr>
+            <td><div class="keyword-cell"><span class="type-dot ${row.type === "brand" ? "brand" : ""}"></span>${escapeHtml(row.keyword)}</div></td>
+            ${visibleMonths.map(value => Number.isFinite(value)
+              ? `<td>${fmt.format(value)}</td>`
+              : `<td class="month-empty">—</td>`).join("")}
+            <td class="month-total-cell">${fmt.format(displayedTotal(visibleMonths))}</td>
+          </tr>
+        `;
+        }).join("");
+        const groups = [
+          { type: "brand", label: "브랜드 키워드", rows: rows.filter(row => row.type === "brand") },
+          { type: "nonbrand", label: "비브랜드 키워드", rows: rows.filter(row => row.type === "nonbrand") }
+        ].filter(group => group.rows.length);
+        const grandMonths = monthTotals(rows);
+        body.innerHTML = `
+          <tr class="monthly-grand-total">
+            <td><span class="monthly-summary-label">전체 월별 합계</span></td>
+            ${grandMonths.map(value => `<td>${fmt.format(value)}</td>`).join("")}
+            <td>${fmt.format(displayedTotal(grandMonths))}</td>
+          </tr>
+          ${groups.map(group => {
+            const totals = monthTotals(group.rows);
+            return `
+          <tr class="keyword-group ${group.type}">
+            <td colspan="${columnCount}">${group.label}<span class="keyword-group-count">${group.rows.length}개</span></td>
+          </tr>
+          <tr class="monthly-subtotal ${group.type}">
+            <td><span class="monthly-summary-label"><span class="type-dot ${group.type === "brand" ? "brand" : ""}"></span>${group.label} 월별 합계</span></td>
+            ${totals.map(value => `<td>${fmt.format(value)}</td>`).join("")}
+            <td>${fmt.format(displayedTotal(totals))}</td>
+          </tr>
+          ${renderRows(group.rows)}
+        `;
+          }).join("")}
+        `;
+      }
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" })[char]);
+      }
+      function setupCanvas(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.max(320, Math.round(rect.width * ratio));
+        canvas.height = Math.round(280 * ratio);
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        return { ctx, width: canvas.width / ratio, height: canvas.height / ratio };
+      }
+      function fillRoundedRect(ctx, x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + width - r, y);
+        ctx.arcTo(x + width, y, x + width, y + r, r);
+        ctx.lineTo(x + width, y + height - r);
+        ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+        ctx.lineTo(x + r, y + height);
+        ctx.arcTo(x, y + height, x, y + height - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+        ctx.fill();
+      }
+      function renderLineChart(reportDate) {
+        const wrap = $("#lineChartWrap");
+        const canvas = $("#lineChart");
+        const oldEmpty = wrap.querySelector(".empty-state");
+        if (oldEmpty) oldEmpty.remove();
+        canvas.style.display = records.length ? "block" : "none";
+        if (!records.length || !reportDate) {
+          wrap.insertAdjacentHTML("beforeend", `<div class="empty-state">CSV를 업로드하면 브랜드와 비브랜드의<br />주차별 추이가 표시됩니다.</div>`);
+          return;
+        }
+        const dates = [...new Set(records.map(item => item.date))]
+          .filter(date => date <= reportDate && isoToDate(date).getDay() === 0)
+          .sort()
+          .slice(-8);
+        const filteredTypes = activeFilter === "all" ? ["nonbrand", "brand"] : [activeFilter];
+        const series = filteredTypes.map(type => ({
+          type,
+          name: type === "brand" ? "브랜드" : "비브랜드",
+          color: type === "brand" ? "#f28b45" : "#20b9c8",
+          values: dates.map(date => records.reduce((sum, item) => item.type === type && item.date === date ? sum + item.value : sum, 0))
+        }));
+        const { ctx, width, height } = setupCanvas(canvas);
+        const pad = { left: 54, right: 22, top: 22, bottom: 66 };
+        const plotW = width - pad.left - pad.right;
+        const plotH = height - pad.top - pad.bottom;
+        const max = Math.max(1, ...series.flatMap(item => item.values)) * 1.12;
+        ctx.clearRect(0, 0, width, height);
+        ctx.font = "10px Pretendard, sans-serif";
+        ctx.fillStyle = "#7c8998";
+        ctx.strokeStyle = "#e4ebf1";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const y = pad.top + plotH * i / 4;
+          ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+          const label = compactNumber(max * (4 - i) / 4);
+          ctx.fillText(label, 4, y + 3);
+        }
+        dates.forEach((date, index) => {
+          const x = pad.left + (plotW * index / Math.max(1, dates.length - 1));
+          const role = date === reportDate
+            ? { label: "금주", color: "#1d6fe8" }
+            : date === shiftDate(reportDate, -7)
+              ? { label: "전주", color: "#0e9eaa" }
+              : date === shiftDate(reportDate, -28)
+                ? { label: "전월", color: "#ed7a32" }
+                : null;
+          ctx.fillStyle = role ? "#35475c" : "#7c8998";
+          ctx.font = role ? "800 10px Pretendard, sans-serif" : "10px Pretendard, sans-serif";
+          ctx.textAlign = index === 0 ? "left" : index === dates.length - 1 ? "right" : "center";
+          ctx.fillText(displayDate(shiftDate(date, -6)), x, height - 34);
+          if (role) {
+            const pillWidth = 42;
+            const pillHeight = 20;
+            const pillCenterX = Math.min(width - pillWidth / 2 - 4, Math.max(pillWidth / 2 + 4, x));
+            ctx.fillStyle = role.color;
+            fillRoundedRect(ctx, pillCenterX - pillWidth / 2, height - 25, pillWidth, pillHeight, 10);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "950 11px Pretendard, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(role.label, pillCenterX, height - 10);
+          }
+        });
+        ctx.textAlign = "left";
+        series.forEach(item => {
+          ctx.strokeStyle = item.color;
+          ctx.lineWidth = 2.6;
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          item.values.forEach((value, index) => {
+            const x = pad.left + plotW * index / Math.max(1, dates.length - 1);
+            const y = pad.top + plotH - (value / max * plotH);
+            index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        });
+        let legendX = pad.left;
+        series.forEach(item => {
+          ctx.fillStyle = item.color;
+          ctx.fillRect(legendX, 4, 18, 3);
+          ctx.fillStyle = "#59697a";
+          ctx.font = "11px Pretendard, sans-serif";
+          ctx.fillText(item.name, legendX + 24, 8);
+          legendX += 78;
+        });
+      }
+      function compactNumber(value) {
+        if (Math.abs(value) >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
+        if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(value >= 100000 ? 0 : 1)}K`;
+        return fmt.format(value);
+      }
+      function renderPills() {
+        const status = $("#sheetStatus");
+        if (!status) return;
+        const latestDate = [...new Set(records.map(item => item.date))].sort().at(-1);
+        const connectedCount = [sourceConfig.nonbrandUrl, sourceConfig.brandUrl].filter(Boolean).length;
+        status.textContent = connectedCount
+          ? `NAVER API 자동 연동 · 현재 데이터 ${records.length.toLocaleString("ko-KR")}건 · 최신 ${latestDate ? displayDateLong(latestDate) : "—"}`
+          : `현재는 엑셀 원본 데이터 ${records.length.toLocaleString("ko-KR")}건이 반영되어 있습니다. 자동 업데이트를 위해 브랜드·비브랜드 CSV 주소를 등록하세요.`;
+      }
+      function renderUnmatched() {
+        const container = $("#unmatchedList");
+        if (!unmatched.length) {
+          container.innerHTML = `<div class="empty-state" style="min-height:150px;">미분류 키워드가 없습니다.</div>`;
+          return;
+        }
+        container.innerHTML = unmatched.slice(0, 150).map(item => `
+          <div class="unmatched-row">
+            <span class="unmatched-keyword" title="${escapeHtml(item.keyword)}">${escapeHtml(item.keyword)} <small style="color:var(--muted);">(${item.count})</small></span>
+            <button class="btn small" data-assign="nonbrand" data-keyword="${escapeHtml(item.keyword)}">비브랜드</button>
+            <button class="btn small" data-assign="brand" data-keyword="${escapeHtml(item.keyword)}">브랜드</button>
+          </div>
+        `).join("");
+        $$("[data-assign]").forEach(button => button.addEventListener("click", () => {
+          const type = button.dataset.assign;
+          const keyword = button.dataset.keyword;
+          if (!keywordConfig[type].includes(keyword)) keywordConfig[type].push(keyword);
+          unmatched = unmatched.filter(item => item.keyword !== keyword);
+          syncKeywordTextareas();
+          saveState();
+          renderUnmatched();
+          renderPills();
+          showToast(`${keyword}을(를) ${type === "brand" ? "브랜드" : "비브랜드"} 목록에 추가했습니다. 다음 API 수집부터 자동 반영됩니다.`);
+        }));
+      }
+      function syncReportDateOptions(preferredDate = "") {
+        const select = $("#reportDate");
+        const dates = [...new Set(records.map(item => item.date))]
+          .filter(date => isoToDate(date).getDay() === 0)
+          .sort();
+        if (!dates.length) {
+          select.innerHTML = `<option value="">데이터 필요</option>`;
+          select.disabled = true;
+          return "";
+        }
+        const current = preferredDate || select.value;
+        select.disabled = false;
+        select.innerHTML = [...dates].reverse().map(date => {
+          const meta = WORKBOOK_WEEKLY_DATA.weeks.find(week => week.end === date);
+          const label = meta
+            ? `${formatWeekStartLabel(date)} · ${meta.rangeLabel}`
+            : `${formatWeekStartLabel(date)} · ${displayDate(shiftDate(date, -6))}–${displayDate(date)}`;
+          return `<option value="${date}">${label}</option>`;
+        }).join("");
+        const selected = dates.includes(current) ? current : dates.at(-1);
+        select.value = selected;
+        return selected;
+      }
+      function syncMonthlyYearOptions(preferredYear = "") {
+        const select = $("#monthlyYearSelect");
+        const years = [...new Set([
+          ...WORKBOOK_MONTHLY_DATA.years,
+          ...records.filter(record => record.granularity === "daily").map(record => Number(record.date.slice(0, 4)))
+        ])].map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+        if (!years.length) {
+          select.innerHTML = `<option value="">데이터 필요</option>`;
+          select.disabled = true;
+          return "";
+        }
+        const current = Number(preferredYear || select.value);
+        select.disabled = false;
+        select.innerHTML = [...years].reverse().map(year => `<option value="${year}">${year}년</option>`).join("");
+        const selected = years.includes(current) ? current : years.at(-1);
+        select.value = String(selected);
+        return selected;
+      }
+      function refreshAll(preferredDate = "", preferredYear = "") {
+        const reportDate = syncReportDateOptions(preferredDate);
+        const year = syncMonthlyYearOptions(preferredYear);
+        reportRows = buildReportRows(reportDate);
+        monthlyRows = buildMonthlyRows(year);
+        renderDateSummary(reportDate);
+        renderMonthlyTable(monthlyRows, year);
+        renderTable(reportRows, reportDate);
+        renderWeeklyComments(reportDate);
+        renderLineChart(reportDate);
+        renderPills();
+        renderUnmatched();
+        refreshDaily($("#dailyWeekSelect").value);
+      }
+      function openSettings() {
+        syncKeywordTextareas();
+        $("#settingsDrawer").classList.add("open");
+        $("#settingsDrawer").setAttribute("aria-hidden", "false");
+        $("#backdrop").classList.add("open");
+      }
+      function closeSettings() {
+        $("#settingsDrawer").classList.remove("open");
+        $("#settingsDrawer").setAttribute("aria-hidden", "true");
+        $("#backdrop").classList.remove("open");
+      }
+      function openSheetDialog() {
+        $("#googleSheetUrl").value = sourceConfig.sheetEditUrl || "";
+        $("#nonbrandUrl").value = sourceConfig.nonbrandUrl || "";
+        $("#brandUrl").value = sourceConfig.brandUrl || "";
+        $("#autoSync").checked = sourceConfig.autoSync !== false;
+        renderPills();
+        const dialog = $("#sheetDialog");
+        if (!dialog.open) dialog.showModal();
+      }
+      function closeSheetDialog() {
+        const dialog = $("#sheetDialog");
+        if (dialog.open) dialog.close();
+      }
+      function syncSheetLinks() {
+        const url = sourceConfig.sheetEditUrl || PUBLIC_SHEET_URL;
+        $("#rawSheetLink").href = url;
+      }
+      function openRawSheet(event) {
+        if (event) event.preventDefault();
+        if (sourceConfig.sheetEditUrl) {
+          window.open(sourceConfig.sheetEditUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+        openSheetDialog();
+        showToast("처음 한 번만 NAVER API 누적 데이터를 등록해 주세요.");
+      }
+      function showPortalView(view, scrollTarget = "", activeButton = null) {
+        $$(".portal-view").forEach(item => item.classList.toggle("active", item.id === `${view}View`));
+        $$(".portal-nav-button").forEach(item => item.classList.remove("active"));
+        const selectedNav = activeButton || $(`.portal-nav-button[data-view="${view}"]`);
+        if (selectedNav) selectedNav.classList.add("active");
+        if (view === "dashboard") refreshAll();
+        if (view === "daily") refreshDaily($("#dailyWeekSelect").value);
+        requestAnimationFrame(() => {
+          if (scrollTarget) {
+            const target = document.getElementById(scrollTarget);
+            if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        });
+      }
+      function syncKeywordTextareas() {
+        $("#nonbrandKeywords").value = keywordConfig.nonbrand.join("\n");
+        $("#brandKeywords").value = keywordConfig.brand.join("\n");
+      }
+      function saveKeywordSettings() {
+        const nonbrand = uniqueLines($("#nonbrandKeywords").value);
+        const brand = uniqueLines($("#brandKeywords").value);
+        const duplicated = nonbrand.filter(keyword => brand.includes(keyword));
+        if (duplicated.length) {
+          showToast(`브랜드와 비브랜드에 중복된 키워드가 있습니다: ${duplicated.slice(0, 3).join(", ")}`, true);
+          return;
+        }
+        keywordConfig = { nonbrand, brand };
+        saveState();
+        refreshAll();
+        closeSettings();
+        showToast(`키워드 ${nonbrand.length + brand.length}개를 저장했습니다.`);
+      }
+      function downloadText(filename, content, type = "text/plain;charset=utf-8") {
+        const blob = new Blob(["\uFEFF", content], { type });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      function exportProcessedCsv() {
+        if (!monthlyRows.length) return showToast("선택한 조건에 표시할 월별 데이터가 없습니다.", true);
+        const year = Number($("#monthlyYearSelect").value);
+        const monthCount = getAvailableMonthCount(year);
+        const headers = ["구분", "키워드", "연도", ...Array.from({ length: monthCount }, (_, index) => `${index + 1}월`), "누적합계"];
+        const rows = monthlyRows.map(row => [
+          row.type === "brand" ? "브랜드" : "비브랜드",
+          row.keyword,
+          year,
+          ...row.months.slice(0, monthCount).map(value => Number.isFinite(value) ? value : ""),
+          row.months.slice(0, monthCount).reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+        ]);
+        downloadText(`네이버_키워드_월별쿼리_${year}.csv`, [headers, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n"), "text/csv;charset=utf-8");
+      }
+      function csvCell(value) {
+        const text = String(value ?? "");
+        return /[",\n]/.test(text) ? `"${text.replace(/"/g, "\"\"")}"` : text;
+      }
+      function exportHtmlDashboard() {
+        const exportedDocument = document.documentElement.cloneNode(true);
+        exportedDocument.querySelectorAll(".internal-only").forEach(element => element.remove());
+        const html = `<!DOCTYPE html>\n${exportedDocument.outerHTML}`;
+        const today = dateToIso(new Date()).replace(/-/g, "");
+        downloadText(`(마인드노크) 네이버 브랜드_비브랜드 쿼리 트렌드_${today}.html`, html, "text/html;charset=utf-8");
+      }
+
+      $$(".portal-nav-button[data-view]").forEach(button => button.addEventListener("click", () => {
+        showPortalView(button.dataset.view, button.dataset.scrollTarget || "", button);
+      }));
+      $("#openDashboardBtn").addEventListener("click", () => {
+        showPortalView("dashboard", "performance-report", $(`.portal-nav-button[data-view="dashboard"]`));
+      });
+      $("#openDailyViewBtn").addEventListener("click", () => {
+        showPortalView("daily");
+      });
+      $("#backToDashboardBtn").addEventListener("click", () => {
+        showPortalView("dashboard", "performance-report");
+      });
+      $$(".daily-type-button").forEach(button => button.addEventListener("click", () => {
+        $$(".daily-type-button").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+        dailyType = button.dataset.dailyType;
+        $("#dailyWeekSelect").dataset.selectedWeek = "";
+        refreshDaily();
+      }));
+      $("#dailyWeekSelect").addEventListener("change", () => {
+        $("#dailyWeekSelect").dataset.selectedWeek = $("#dailyWeekSelect").value;
+        renderDailyTable($("#dailyWeekSelect").value);
+      });
+      $("#rawSheetLink").addEventListener("click", openRawSheet);
+      $("#closeSheetDialogBtn").addEventListener("click", closeSheetDialog);
+      $$(".segment").forEach(button => button.addEventListener("click", () => {
+        $$(".segment").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+        activeFilter = button.dataset.filter;
+        refreshAll();
+      }));
+      $("#reportDate").addEventListener("change", () => refreshAll($("#reportDate").value, $("#monthlyYearSelect").value));
+      $("#monthlyYearSelect").addEventListener("change", () => refreshAll($("#reportDate").value, $("#monthlyYearSelect").value));
+      $("#keywordSearch").addEventListener("input", () => refreshAll($("#reportDate").value, $("#monthlyYearSelect").value));
+      $("#settingsBtn").addEventListener("click", openSettings);
+      $("#dailySettingsBtn").addEventListener("click", openSettings);
+      $("#closeSettingsBtn").addEventListener("click", closeSettings);
+      $("#backdrop").addEventListener("click", closeSettings);
+      $("#saveKeywordsBtn").addEventListener("click", saveKeywordSettings);
+      $("#restoreKeywordsBtn").addEventListener("click", () => {
+        keywordConfig = { nonbrand: [...DEFAULT_NONBRAND], brand: [...DEFAULT_BRAND] };
+        syncKeywordTextareas();
+        showToast("기본 키워드 목록을 불러왔습니다. 저장 버튼을 눌러 적용하세요.");
+      });
+      $("#clearUnmatchedBtn").addEventListener("click", () => {
+        unmatched = []; saveState(); renderUnmatched(); renderPills();
+      });
+      const downloadReport = event => {
+        event.preventDefault();
+        exportProcessedCsv();
+      };
+      $("#reportDownloadLink").addEventListener("click", downloadReport);
+      $("#htmlDownloadBtn").addEventListener("click", exportHtmlDashboard);
+      $("#sheetOpenBtn").addEventListener("click", () => {
+        const sheetUrl = ($("#googleSheetUrl").value || sourceConfig.sheetEditUrl || "").trim();
+        if (!sheetUrl) {
+          $("#googleSheetUrl").focus();
+          showToast("누적용 Google Sheets 주소를 먼저 등록해 주세요.");
+          return;
+        }
+        if (!/^https:\/\//i.test(sheetUrl)) {
+          $("#googleSheetUrl").focus();
+          showToast("Google Sheets 주소는 https://로 시작해야 합니다.");
+          return;
+        }
+        sourceConfig.sheetEditUrl = sheetUrl;
+        saveState();
+        syncSheetLinks();
+        window.open(sheetUrl, "_blank", "noopener,noreferrer");
+      });
+      $("#syncUrlBtn").addEventListener("click", async () => {
+        const nextConfig = {
+          sheetEditUrl: $("#googleSheetUrl").value.trim(),
+          nonbrandUrl: $("#nonbrandUrl").value.trim(),
+          brandUrl: $("#brandUrl").value.trim(),
+          autoSync: $("#autoSync").checked
+        };
+        if (!nextConfig.sheetEditUrl) {
+          $("#googleSheetUrl").focus();
+          showToast("NAVER API 누적 데이터를 입력해 주세요.", true);
+          return;
+        }
+        const invalidUrl = [nextConfig.sheetEditUrl, nextConfig.nonbrandUrl, nextConfig.brandUrl]
+          .filter(Boolean)
+          .find(url => !/^https:\/\//i.test(url));
+        if (invalidUrl) {
+          showToast("연동 주소는 https://로 시작해야 합니다.", true);
+          return;
+        }
+        sourceConfig = nextConfig;
+        saveState();
+        syncSheetLinks();
+        if (sourceConfig.nonbrandUrl || sourceConfig.brandUrl) {
+          await syncRemoteSources();
+        } else {
+          showToast("누적용 Google Sheets 주소를 저장했습니다.");
+        }
+        renderPills();
+        closeSheetDialog();
+      });
+      window.addEventListener("resize", () => {
+        clearTimeout(window.__chartResizeTimer);
+        window.__chartResizeTimer = setTimeout(() => {
+          renderLineChart($("#reportDate").value);
+        }, 120);
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          closeSettings();
+          closeSheetDialog();
+        }
+      });
+
+
+      async function loadApiData() {
+        try {
+          const response = await fetch("/api/history", { cache: "no-store" });
+          if (!response.ok) throw new Error(`API 데이터 조회 실패 (${response.status})`);
+          const payload = await response.json();
+          keywordConfig = payload.keywordConfig || { nonbrand: [...DEFAULT_NONBRAND], brand: [...DEFAULT_BRAND] };
+          records = (payload.records || []).filter(item => item.status === "FINAL").map(item => ({
+            type: item.type,
+            keyword: item.keyword,
+            date: item.date,
+            value: Number(item.estimatedQuery) || 0,
+            granularity: "daily",
+            source: item.calculationMode === "BACKFILL_CURRENT_SNAPSHOT" ? "NAVER API 백필" : "NAVER API 일일 확정",
+            importedAt: item.finalizedAt || payload.updatedAt || new Date().toISOString()
+          }));
+          imports = (payload.jobs || []).filter(job => job.status === "FINAL").map(job => ({
+            file: job.type === "BACKFILL_CURRENT_SNAPSHOT" ? "NAVER API 과거 백필" : "NAVER API 일일 수집",
+            importedAt: job.finishedAt,
+            matchedKeywords: job.finalCount || 0,
+            dateMin: job.from || job.targetDate,
+            dateMax: job.to || job.targetDate
+          }));
+          syncKeywordTextareas();
+          const latestDate = records.reduce((latest, item) => item.date > latest ? item.date : latest, "");
+          refreshAll(latestDate || undefined);
+          showToast(`NAVER API 확정 데이터 ${records.length.toLocaleString("ko-KR")}건을 불러왔습니다.`);
+        } catch (error) {
+          records = [];
+          refreshAll();
+          showToast(error.message || "API 데이터를 불러오지 못했습니다.", true);
+        }
+      }
+
+      syncKeywordTextareas();
+      $("#googleSheetUrl").value = sourceConfig.sheetEditUrl || "";
+      $("#nonbrandUrl").value = sourceConfig.nonbrandUrl || "";
+      $("#brandUrl").value = sourceConfig.brandUrl || "";
+      $("#autoSync").checked = sourceConfig.autoSync !== false;
+      syncSheetLinks();
+      loadApiData();
+    })();
+  </script>
+</body>
+</html>

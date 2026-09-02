@@ -2416,6 +2416,31 @@
         ctx.closePath();
         ctx.fill();
       }
+      function traceSmoothLine(ctx, points) {
+        if (!points.length) return;
+        ctx.moveTo(points[0].x, points[0].y);
+        if (points.length === 1) return;
+        if (points.length === 2) {
+          ctx.lineTo(points[1].x, points[1].y);
+          return;
+        }
+        const tension = 0.72;
+        for (let index = 0; index < points.length - 1; index++) {
+          const previous = points[Math.max(0, index - 1)];
+          const current = points[index];
+          const next = points[index + 1];
+          const afterNext = points[Math.min(points.length - 1, index + 2)];
+          const control1 = {
+            x: current.x + (next.x - previous.x) * tension / 6,
+            y: current.y + (next.y - previous.y) * tension / 6
+          };
+          const control2 = {
+            x: next.x - (afterNext.x - current.x) * tension / 6,
+            y: next.y - (afterNext.y - current.y) * tension / 6
+          };
+          ctx.bezierCurveTo(control1.x, control1.y, control2.x, control2.y, next.x, next.y);
+        }
+      }
       function renderLineChart(reportDate) {
         const wrap = $("#lineChartWrap");
         const canvas = $("#lineChart");
@@ -2483,12 +2508,13 @@
           ctx.strokeStyle = item.color;
           ctx.lineWidth = 2.6;
           ctx.lineJoin = "round";
+          ctx.lineCap = "round";
+          const points = item.values.map((value, index) => ({
+            x: pad.left + plotW * index / Math.max(1, dates.length - 1),
+            y: pad.top + plotH - (value / max * plotH)
+          }));
           ctx.beginPath();
-          item.values.forEach((value, index) => {
-            const x = pad.left + plotW * index / Math.max(1, dates.length - 1);
-            const y = pad.top + plotH - (value / max * plotH);
-            index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-          });
+          traceSmoothLine(ctx, points);
           ctx.stroke();
         });
         let legendX = pad.left;

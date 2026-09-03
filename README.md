@@ -107,8 +107,8 @@ Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/test/datalab -Cont
 
 1. Supabase에서 프로젝트를 생성합니다.
 2. SQL Editor에서 `supabase_schema.sql`을 실행합니다.
-3. Project URL과 `service_role` 키를 확인합니다.
-4. `service_role` 키는 브라우저나 공개 저장소에 절대 넣지 않습니다.
+3. Project URL과 서버 전용 Secret key(`sb_secret_...`)를 확인합니다.
+4. Secret key는 브라우저 코드나 공개 저장소에 절대 넣지 않습니다.
 
 ### 2. 기존 데이터 이전
 
@@ -140,7 +140,7 @@ python scripts/migrate_json_to_supabase.py
 - `NAVER_API_HUB_CLIENT_ID`
 - `NAVER_API_HUB_CLIENT_SECRET`
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_SECRET_KEY`
 
 수동 실행은 GitHub의 **Actions → Daily Naver keyword collection → Run workflow**에서 할 수 있습니다.
 

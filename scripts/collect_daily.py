@@ -15,7 +15,7 @@ from storage import make_store
 
 
 settings = dict(os.environ)
-required = ["NAVER_AD_API_KEY", "NAVER_AD_SECRET_KEY", "NAVER_AD_CUSTOMER_ID", "NAVER_API_HUB_CLIENT_ID", "NAVER_API_HUB_CLIENT_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+required = ["NAVER_AD_API_KEY", "NAVER_AD_SECRET_KEY", "NAVER_AD_CUSTOMER_ID", "NAVER_API_HUB_CLIENT_ID", "NAVER_API_HUB_CLIENT_SECRET", "SUPABASE_URL", "SUPABASE_SECRET_KEY"]
 missing = [key for key in required if not settings.get(key)]
 if missing:
     raise SystemExit(f"Required secrets missing: {', '.join(missing)}")
@@ -39,4 +39,3 @@ store.add_job(job)
 print(json.dumps(job, ensure_ascii=False))
 if failed_count:
     raise SystemExit(1)
-

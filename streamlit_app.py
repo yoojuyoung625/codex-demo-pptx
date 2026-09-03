@@ -165,7 +165,7 @@ with daily_tab:
 
 with internal_tab:
     st.subheader("일일 수집 작업")
-    backend = "Supabase 영구 저장소" if SETTINGS.get("SUPABASE_URL") else "로컬 JSON 저장소"
+    backend = "Supabase 영구 저장소" if SETTINGS.get("SUPABASE_URL") and (SETTINGS.get("SUPABASE_SECRET_KEY") or SETTINGS.get("SUPABASE_SERVICE_ROLE_KEY")) else "로컬 JSON 저장소"
     st.caption(f"현재 저장소: {backend} · 완료된 과거 값은 다시 계산하지 않습니다.")
     yesterday = date.today() - timedelta(days=1)
     target = st.date_input("대상일", value=yesterday, max_value=yesterday, key="collect_target")

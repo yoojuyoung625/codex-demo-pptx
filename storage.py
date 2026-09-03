@@ -93,6 +93,7 @@ class SupabaseStore:
 
 
 def make_store(settings: dict[str, str]):
-    if settings.get("SUPABASE_URL") and settings.get("SUPABASE_SERVICE_ROLE_KEY"):
-        return SupabaseStore(settings["SUPABASE_URL"], settings["SUPABASE_SERVICE_ROLE_KEY"])
+    secret_key = settings.get("SUPABASE_SECRET_KEY") or settings.get("SUPABASE_SERVICE_ROLE_KEY")
+    if settings.get("SUPABASE_URL") and secret_key:
+        return SupabaseStore(settings["SUPABASE_URL"], secret_key)
     return JsonStore()

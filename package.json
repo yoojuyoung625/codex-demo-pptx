@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.mjs",
     "daily": "node server.mjs --run-daily",
+    "catchup": "node server.mjs --run-catchup",
     "build:static": "node scripts/build_static_snapshot.mjs"
   },
   "engines": { "node": ">=18" }

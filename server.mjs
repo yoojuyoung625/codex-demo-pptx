@@ -388,7 +388,11 @@ const server = http.createServer(async (req, res) => {
     json(res, 500, { error: error.message || "서버 오류" });
   }
 });
-if (process.argv.includes("--run-daily")) {
+if (process.argv.includes("--run-catchup")) {
+  const job = await runCatchup();
+  console.log(JSON.stringify(job));
+  process.exit(["FAILED", "PARTIAL"].includes(job.status) ? 1 : 0);
+} else if (process.argv.includes("--run-daily")) {
   const job = await runDailyJob(completedWindow().endDate, false);
   console.log(JSON.stringify(job));
   process.exit(["FAILED", "PARTIAL"].includes(job.status) ? 1 : 0);

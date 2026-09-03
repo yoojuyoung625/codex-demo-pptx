@@ -9,3 +9,4 @@ data/store.before-*.json
 *.sqlite*
 __pycache__/
 *.py[cod]
+runtime/node.exe

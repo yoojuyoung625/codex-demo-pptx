@@ -1,0 +1,36 @@
+name: Deploy advertiser dashboard to GitHub Pages
+
+on:
+  push:
+    branches: ["codex/streamlit-deployment"]
+    paths:
+      - "public/**"
+      - ".github/workflows/deploy-advertiser-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare advertiser site
+        run: cp public/advertiser.html public/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

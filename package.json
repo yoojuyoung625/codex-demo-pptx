@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "daily": "node server.mjs --run-daily"
+    "daily": "node server.mjs --run-daily",
+    "build:static": "node scripts/build_static_snapshot.mjs"
   },
   "engines": { "node": ">=18" }
 }

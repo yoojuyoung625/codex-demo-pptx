@@ -1197,7 +1197,7 @@
             <p class="landing-description">브랜드·비브랜드 38개 키워드의 일별·월별 검색 쿼리와 최근 8주 추이, 주차별 성과를 확인하세요.</p>
             <p class="landing-note">일자별 월~일 조회 · 월별 데이터 2022~2026년 · 최근 8주 및 전주·전월 비교</p>
             <button class="landing-cta" id="openDashboardBtn" type="button"><span aria-hidden="true">▥</span> 대시보드 보기</button>
-            <div><a class="landing-raw-link" id="rawSheetLink" href="/dashboard.html" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span> 네이버 API 데이터 상태</a></div>
+            <div><a class="landing-raw-link internal-only" id="rawSheetLink" href="/dashboard.html" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span> 네이버 API 데이터 상태</a></div>
           </div>
           <div class="landing-preview" aria-label="대시보드 미리보기">
             <div class="preview-live">DASHBOARD LIVE PREVIEW</div>
@@ -1499,6 +1499,12 @@
   <script>
     (() => {
       "use strict";
+
+      const IS_LOCAL_API_SERVER = ["localhost", "127.0.0.1"].includes(window.location.hostname) && window.location.port === "3000";
+      const IS_STATIC_SITE = !IS_LOCAL_API_SERVER;
+      if (IS_STATIC_SITE) {
+        document.querySelectorAll(".internal-only").forEach(element => element.remove());
+      }
 
       const WORKBOOK_WEEKLY_DATA = { weeks: [], rows: [] };
       const WORKBOOK_NONBRAND_INDEX = [];
@@ -2733,6 +2739,11 @@
         showPortalView(button.dataset.view, button.dataset.scrollTarget || "", button);
       }));
       $("#openDashboardBtn").addEventListener("click", async () => {
+        if (IS_STATIC_SITE) {
+          await loadApiData({ silent: true });
+          showPortalView("dashboard", "performance-report", $(`.portal-nav-button[data-view="dashboard"]`));
+          return;
+        }
         const button = $("#openDashboardBtn");
         const originalHtml = button.innerHTML;
         button.disabled = true;
@@ -2876,7 +2887,8 @@
 
       async function loadApiData({ silent = false } = {}) {
         try {
-          const response = await fetch("/api/history", { cache: "no-store" });
+          const historyUrl = IS_STATIC_SITE ? "./history.json" : "/api/history";
+          const response = await fetch(historyUrl, { cache: "no-store" });
           if (!response.ok) throw new Error(`API 데이터 조회 실패 (${response.status})`);
           const payload = await response.json();
           keywordConfig = payload.keywordConfig || { nonbrand: [...DEFAULT_NONBRAND], brand: [...DEFAULT_BRAND] };

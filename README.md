@@ -99,6 +99,57 @@ Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/test/datalab -Cont
 - 최초 실행 시 빈 `data/store.json`이 자동 생성됩니다.
 - 포트폴리오에는 고객사명, 실제 API 응답, 운영 검색량 등 비공개 자료를 올리지 않는 것을 권장합니다.
 
+## Streamlit 배포
+
+기존 Node.js 로컬 버전은 그대로 유지하며, `streamlit_app.py`가 배포용 진입점입니다.
+
+### 1. Supabase 생성
+
+1. Supabase에서 프로젝트를 생성합니다.
+2. SQL Editor에서 `supabase_schema.sql`을 실행합니다.
+3. Project URL과 `service_role` 키를 확인합니다.
+4. `service_role` 키는 브라우저나 공개 저장소에 절대 넣지 않습니다.
+
+### 2. 기존 데이터 이전
+
+로컬에서 `.streamlit/secrets.example.toml`을 `.streamlit/secrets.toml`로 복사한 뒤 실제 값을 입력합니다. 이 파일은 Git에서 제외됩니다.
+
+```powershell
+streamlit run streamlit_app.py
+python scripts/migrate_json_to_supabase.py
+```
+
+이전 스크립트는 현재 `data/store.json`의 확정값·실패값·작업 이력을 Supabase에 upsert합니다.
+
+### 3. Streamlit Community Cloud
+
+1. GitHub 저장소에 코드를 push합니다.
+2. `share.streamlit.io`에서 **Create app**을 선택합니다.
+3. Repository와 `main` 브랜치를 선택합니다.
+4. Main file path에 `streamlit_app.py`를 입력합니다.
+5. Advanced settings의 Secrets에 `.streamlit/secrets.example.toml`과 같은 키를 실제 값으로 등록합니다.
+6. Deploy를 실행합니다.
+
+### 4. 매일 오전 8시 자동 수집
+
+`.github/workflows/daily-collection.yml`은 매일 08:00 KST에 전일 데이터를 수집합니다. GitHub 저장소의 **Settings → Secrets and variables → Actions**에 다음 값을 등록합니다.
+
+- `NAVER_AD_API_KEY`
+- `NAVER_AD_SECRET_KEY`
+- `NAVER_AD_CUSTOMER_ID`
+- `NAVER_API_HUB_CLIENT_ID`
+- `NAVER_API_HUB_CLIENT_SECRET`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+수동 실행은 GitHub의 **Actions → Daily Naver keyword collection → Run workflow**에서 할 수 있습니다.
+
+## 이중 실행 구조
+
+- `npm start`: 기존 HTML 디자인과 Node.js 로컬 운영 화면
+- `streamlit run streamlit_app.py`: Streamlit 로컬·클라우드 배포판
+- Supabase Secrets가 있으면 영구 DB를 사용하고, 없으면 로컬 `data/store.json`을 사용합니다.
+
 ## 기술 구성
 
 - Node.js 내장 HTTP 서버
@@ -106,3 +157,6 @@ Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/test/datalab -Cont
 - NAVER API HUB Search Trend API
 - Vanilla HTML, CSS, JavaScript
 - 파일 기반 JSON 영속 저장소
+- Python / Streamlit / Plotly
+- Supabase PostgreSQL REST API
+- GitHub Actions 오전 8시 자동 수집

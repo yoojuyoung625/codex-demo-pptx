@@ -43,8 +43,14 @@ class JsonStore:
 
 class SupabaseStore:
     def __init__(self, url: str, service_key: str):
-        self.base = f"{url.rstrip('/')}/rest/v1"
-        self.headers = {"apikey": service_key, "Authorization": f"Bearer {service_key}", "Content-Type": "application/json"}
+        clean_url = url.rstrip("/")
+        if clean_url.endswith("/rest/v1"):
+            clean_url = clean_url[: -len("/rest/v1")]
+        self.base = f"{clean_url}/rest/v1"
+        self.headers = {"apikey": service_key, "Content-Type": "application/json"}
+        # Legacy service-role keys are JWTs; current sb_secret_ keys use apikey.
+        if service_key.startswith("eyJ"):
+            self.headers["Authorization"] = f"Bearer {service_key}"
 
     def _paged(self, table: str, order: str) -> list[dict]:
         rows = []

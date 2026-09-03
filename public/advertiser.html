@@ -2653,7 +2653,8 @@
       }
       function syncSheetLinks() {
         const url = sourceConfig.sheetEditUrl || PUBLIC_SHEET_URL;
-        $("#rawSheetLink").href = url;
+        const rawSheetLink = $("#rawSheetLink");
+        if (rawSheetLink) rawSheetLink.href = url;
       }
       function openRawSheet(event) {
         if (event) event.preventDefault();
@@ -2792,7 +2793,7 @@
         $("#dailyWeekSelect").dataset.selectedWeek = $("#dailyWeekSelect").value;
         renderDailyTable($("#dailyWeekSelect").value);
       });
-      $("#rawSheetLink").addEventListener("click", openRawSheet);
+      $("#rawSheetLink")?.addEventListener("click", openRawSheet);
       $("#closeSheetDialogBtn").addEventListener("click", closeSheetDialog);
       $$(".segment[data-filter-scope]").forEach(button => button.addEventListener("click", () => {
         const scope = button.dataset.filterScope;

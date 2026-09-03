@@ -217,7 +217,10 @@ async function runDailyJob(targetDate, retryOnly = false) {
       const trend = trendMap.get(target.keyword) || [];
       const ratioSum = trend.reduce((sum, row) => sum + (Number(row.ratio) || 0), 0);
       const targetTrend = trend.find(row => row.period === targetDate);
-      const completeWindow = trend.length === 30 && Boolean(targetTrend);
+      // DataLab omits dates whose ratio is zero, so a valid 30-day request can
+      // legitimately return fewer than 30 points. The target day must exist;
+      // omitted interior dates contribute zero and do not invalidate the sum.
+      const completeWindow = Boolean(targetTrend);
       let record;
       if (!searchAdRow || !ratioSum || !completeWindow) {
         record = { date: targetDate, keyword: target.keyword, type: target.type, status: "FAILED", attempts, updatedAt: fetchedAt,

@@ -1,6 +1,9 @@
 name: Daily Naver collection and Pages update
 
 on:
+  push:
+    branches: ["main"]
+    paths: [".github/workflows/daily-collection.yml"]
   schedule:
     - cron: "0 23 * * *" # 매일 오전 8시 KST
   workflow_dispatch:

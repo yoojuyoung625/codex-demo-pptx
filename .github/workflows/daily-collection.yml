@@ -30,6 +30,27 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Validate secret configuration
+        shell: bash
+        env:
+          NAVER_AD_API_KEY: ${{ secrets.NAVER_AD_API_KEY }}
+          NAVER_AD_SECRET_KEY: ${{ secrets.NAVER_AD_SECRET_KEY }}
+          NAVER_AD_CUSTOMER_ID: ${{ secrets.NAVER_AD_CUSTOMER_ID }}
+          NAVER_API_HUB_CLIENT_ID: ${{ secrets.NAVER_API_HUB_CLIENT_ID }}
+          NAVER_API_HUB_CLIENT_SECRET: ${{ secrets.NAVER_API_HUB_CLIENT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          missing=()
+          for name in NAVER_AD_API_KEY NAVER_AD_SECRET_KEY NAVER_AD_CUSTOMER_ID NAVER_API_HUB_CLIENT_ID NAVER_API_HUB_CLIENT_SECRET SUPABASE_URL; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          [[ -n "$SUPABASE_SECRET_KEY" || -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || missing+=("SUPABASE_SECRET_KEY 또는 SUPABASE_SERVICE_ROLE_KEY")
+          if (( ${#missing[@]} )); then
+            printf '누락된 GitHub Actions Secret: %s\n' "${missing[*]}"
+            exit 1
+          fi
       - name: Collect missing dates through yesterday
         id: collection
         continue-on-error: true
@@ -42,11 +63,13 @@ jobs:
           NAVER_API_HUB_CLIENT_SECRET: ${{ secrets.NAVER_API_HUB_CLIENT_SECRET }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Export finalized Supabase data
         run: python scripts/export_supabase_snapshot.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Prepare advertiser site
         run: cp public/advertiser.html public/index.html
       - uses: actions/configure-pages@v5

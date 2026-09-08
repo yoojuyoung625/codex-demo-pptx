@@ -28,6 +28,10 @@ target = target_date.isoformat()
 keywords = json.loads((ROOT / "config" / "keywords.json").read_text(encoding="utf-8"))
 store = make_store(settings)
 all_keywords = set(keywords["brand"] + keywords["nonbrand"])
+final_by_date: dict[str, set[str]] = {}
+for record in store.records():
+    if record.get("status") == "FINAL" and record.get("date"):
+        final_by_date.setdefault(record["date"], set()).add(record["keyword"])
 # 최근 31일을 다시 훑어 완료된 날짜는 건너뛰고, 과거의 부분 실패도 빠짐없이 재시도합니다.
 automation_start = date.fromisoformat(settings.get("COLLECTION_START_DATE", "2026-09-01"))
 start_date = max(automation_start, target_date - timedelta(days=30))
@@ -38,8 +42,7 @@ jobs = []
 current = start_date
 while current <= target_date:
     day = current.isoformat()
-    existing = store.records()
-    final = {row["keyword"] for row in existing if row.get("date") == day and row.get("status") == "FINAL"}
+    final = final_by_date.get(day, set())
     targets = all_keywords - final
     if not targets:
         current += timedelta(days=1)
@@ -52,6 +55,7 @@ while current <= target_date:
             if row.get("status") == "FINAL":
                 row["calculationMode"] = "BACKFILL_CURRENT_SNAPSHOT"
     store.upsert_records(rows)
+    final_by_date.setdefault(day, set()).update(row["keyword"] for row in rows if row.get("status") == "FINAL")
     final_count = sum(row["status"] == "FINAL" for row in rows)
     failed_count = len(rows) - final_count
     job = {"id": f"{int(time.time() * 1000)}-github-actions", "targetDate": day, "startedAt": started, "finishedAt": datetime.now(timezone.utc).isoformat(),

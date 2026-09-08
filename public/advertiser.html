@@ -1195,7 +1195,7 @@
             <div class="landing-badge">NAVER TREND ANALYTICS</div>
             <h1 class="landing-title" id="landingTitle">네이버 키워드<span>트렌드 대시보드</span></h1>
             <p class="landing-description">브랜드·비브랜드 38개 키워드의 일별·월별 검색 쿼리와 최근 8주 추이, 주차별 성과를 확인하세요.</p>
-            <p class="landing-note">일자별 월~일 조회 · 월별 데이터 2022~2026년 · 최근 8주 및 전주·전월 비교</p>
+            <p class="landing-note">일자별 월~일 조회 · 월별 데이터 2022~2026년 · 최근 8주 및 전주·4주 전 비교</p>
             <button class="landing-cta" id="openDashboardBtn" type="button"><span aria-hidden="true">▥</span> 대시보드 보기</button>
             <div><a class="landing-raw-link internal-only" id="rawSheetLink" href="/dashboard.html" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span> 네이버 API 데이터 상태</a></div>
           </div>
@@ -1250,7 +1250,7 @@
             <div class="date-summary-range" id="previousWeekRange">—</div>
           </article>
           <article class="date-summary-card" style="--date-accent:#f28b45">
-            <div class="date-summary-role">전월</div>
+            <div class="date-summary-role">4주 전</div>
             <div class="date-summary-value" id="previousMonthDate">—</div>
             <div class="date-summary-range" id="previousMonthRange">—</div>
           </article>
@@ -1356,11 +1356,11 @@
                 <th>전주 쿼리 증감</th>
                 <th class="index-column">전주 지수 증감</th>
                 <th>전주 증감률</th>
-                <th id="fourWeeksHeader"><span class="week-head"><span class="week-date">4주 전</span><span class="week-role month">전월</span></span></th>
-                <th class="index-column">전월 지수</th>
-                <th>전월 쿼리 증감</th>
-                <th class="index-column">전월 지수 증감</th>
-                <th>전월 증감률</th>
+                <th id="fourWeeksHeader"><span class="week-head"><span class="week-date">4주 전</span><span class="week-role month">4주 전</span></span></th>
+                <th class="index-column">4주 전 지수</th>
+                <th>4주 전 쿼리 증감</th>
+                <th class="index-column">4주 전 지수 증감</th>
+                <th>4주 전 증감률</th>
                 <th>상태</th>
               </tr>
             </thead>
@@ -1647,6 +1647,15 @@
         const date = isoToDate(iso);
         date.setDate(date.getDate() + days);
         return dateToIso(date);
+      }
+      function completedWeekEnd(iso) {
+        if (!iso) return "";
+        const date = isoToDate(iso);
+        return shiftDate(iso, -date.getDay());
+      }
+      function mondaySundayWeek(iso) {
+        const end = completedWeekEnd(iso);
+        return end ? { start: shiftDate(end, -6), end } : { start: "", end: "" };
       }
       function monthStart(iso) {
         const date = isoToDate(iso);
@@ -1941,9 +1950,9 @@
       }
       function buildReportRows(reportDate) {
         if (!reportDate) return [];
-        const week = { start: shiftDate(reportDate, -6), end: reportDate };
-        const prevWeek = { start: shiftDate(reportDate, -13), end: shiftDate(reportDate, -7) };
-        const fourWeeksAgo = { start: shiftDate(reportDate, -34), end: shiftDate(reportDate, -28) };
+        const week = mondaySundayWeek(reportDate);
+        const prevWeek = mondaySundayWeek(shiftDate(week.end, -7));
+        const fourWeeksAgo = mondaySundayWeek(shiftDate(week.end, -28));
         return getFilteredKeywords(weeklyFilter, true).map(item => {
           const weekNow = sumFor(item.keyword, item.type, week.start, week.end);
           const weekPrev = sumFor(item.keyword, item.type, prevWeek.start, prevWeek.end);
@@ -2183,17 +2192,15 @@
         return Number.isFinite(value) ? indexFmt.format(value) : "—";
       }
       function renderDateSummary(reportDate) {
-        const currentStart = reportDate ? shiftDate(reportDate, -6) : "";
-        const previousEnd = reportDate ? shiftDate(reportDate, -7) : "";
-        const previousStart = reportDate ? shiftDate(reportDate, -13) : "";
-        const previousMonthEnd = reportDate ? shiftDate(reportDate, -28) : "";
-        const previousMonthStart = previousMonthEnd ? shiftDate(previousMonthEnd, -6) : "";
-        $("#currentWeekDate").textContent = reportDate ? formatWeekStartLabel(reportDate) : "—";
-        $("#currentWeekRange").textContent = reportDate ? `${displayDate(currentStart)}–${displayDate(reportDate)}` : "데이터 필요";
-        $("#previousWeekDate").textContent = previousEnd ? formatWeekStartLabel(previousEnd) : "—";
-        $("#previousWeekRange").textContent = previousEnd ? `${displayDate(previousStart)}–${displayDate(previousEnd)}` : "데이터 필요";
-        $("#previousMonthDate").textContent = previousMonthEnd ? formatWeekStartLabel(previousMonthEnd) : "—";
-        $("#previousMonthRange").textContent = previousMonthEnd ? `${displayDate(previousMonthStart)}–${displayDate(previousMonthEnd)}` : "데이터 필요";
+        const current = mondaySundayWeek(reportDate);
+        const previous = mondaySundayWeek(current.end ? shiftDate(current.end, -7) : "");
+        const previousMonth = mondaySundayWeek(current.end ? shiftDate(current.end, -28) : "");
+        $("#currentWeekDate").textContent = current.end ? formatWeekStartLabel(current.end) : "—";
+        $("#currentWeekRange").textContent = current.end ? `${displayDate(current.start)}–${displayDate(current.end)}` : "데이터 필요";
+        $("#previousWeekDate").textContent = previous.end ? formatWeekStartLabel(previous.end) : "—";
+        $("#previousWeekRange").textContent = previous.end ? `${displayDate(previous.start)}–${displayDate(previous.end)}` : "데이터 필요";
+        $("#previousMonthDate").textContent = previousMonth.end ? formatWeekStartLabel(previousMonth.end) : "—";
+        $("#previousMonthRange").textContent = previousMonth.end ? `${displayDate(previousMonth.start)}–${displayDate(previousMonth.end)}` : "데이터 필요";
       }
       function formatWeekStartLabel(endDate) {
         if (!endDate) return "—";
@@ -2201,10 +2208,11 @@
         return `${start.getMonth() + 1}월 ${start.getDate()}일 주차`;
       }
       function updateWeekHeaders(reportDate) {
+        const weekEnd = completedWeekEnd(reportDate);
         const headers = [
-          { selector: "#currentWeekHeader", date: reportDate, role: "금주", roleClass: "current" },
-          { selector: "#previousWeekHeader", date: reportDate ? shiftDate(reportDate, -7) : "", role: "전주", roleClass: "" },
-          { selector: "#fourWeeksHeader", date: reportDate ? shiftDate(reportDate, -28) : "", role: "전월", roleClass: "month" }
+          { selector: "#currentWeekHeader", date: weekEnd, role: "금주", roleClass: "current" },
+          { selector: "#previousWeekHeader", date: weekEnd ? shiftDate(weekEnd, -7) : "", role: "전주", roleClass: "" },
+          { selector: "#fourWeeksHeader", date: weekEnd ? shiftDate(weekEnd, -28) : "", role: "4주 전", roleClass: "month" }
         ];
         headers.forEach(item => {
           $(item.selector).innerHTML = `<span class="week-head"><span class="week-date">${formatWeekStartLabel(item.date)}</span><span class="week-role ${item.roleClass}">${item.role}</span></span>`;
@@ -2265,9 +2273,9 @@
           container.innerHTML = `<div class="weekly-comment-empty">주차 데이터가 연결되면 브랜드·비브랜드 코멘트가 자동 생성됩니다.</div>`;
           return;
         }
-        const week = { start: shiftDate(reportDate, -6), end: reportDate };
-        const previousWeek = { start: shiftDate(reportDate, -13), end: shiftDate(reportDate, -7) };
-        const previousMonth = { start: shiftDate(reportDate, -34), end: shiftDate(reportDate, -28) };
+        const week = mondaySundayWeek(reportDate);
+        const previousWeek = mondaySundayWeek(shiftDate(week.end, -7));
+        const previousMonth = mondaySundayWeek(shiftDate(week.end, -28));
         const trendWord = value => value > 0 ? "증가" : value < 0 ? "감소" : "보합";
         const trendClass = value => value > 0 ? "num-up" : value < 0 ? "num-down" : "";
         const summaries = [
@@ -2315,7 +2323,7 @@
               <div class="weekly-comment-label"><span class="type-dot ${summary.type === "brand" ? "brand" : ""}"></span>${summary.label}</div>
               <div class="weekly-comment-line">
                 <span>전주 대비 <strong class="${trendClass(summary.weekDiff)}">${summary.weekComplete ? `${formatDelta(summary.weekDiff)}건 (${formatChange(summary.weekPct)}) ${trendWord(summary.weekDiff)}` : "비교 주차 데이터 미완성"}</strong></span>
-                <span>· 전월 대비 <strong class="${trendClass(summary.monthDiff)}">${summary.monthComplete ? `${formatDelta(summary.monthDiff)}건 (${formatChange(summary.monthPct)}) ${trendWord(summary.monthDiff)}` : "비교 주차 데이터 미완성"}</strong></span>
+                <span>· 4주 전 대비 <strong class="${trendClass(summary.monthDiff)}">${summary.monthComplete ? `${formatDelta(summary.monthDiff)}건 (${formatChange(summary.monthPct)}) ${trendWord(summary.monthDiff)}` : "비교 주차 데이터 미완성"}</strong></span>
                 ${driverText}
               </div>
             </article>

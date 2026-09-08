@@ -27,13 +27,10 @@ target_date = datetime.now(kst).date() - timedelta(days=1)
 target = target_date.isoformat()
 keywords = json.loads((ROOT / "config" / "keywords.json").read_text(encoding="utf-8"))
 store = make_store(settings)
-existing = store.records()
 all_keywords = set(keywords["brand"] + keywords["nonbrand"])
-known_dates = sorted(date.fromisoformat(row["date"]) for row in existing if row.get("date") and date.fromisoformat(row["date"]) <= target_date)
-start_date = target_date if not known_dates else known_dates[-1]
-latest_final = {row["keyword"] for row in existing if row.get("date") == start_date.isoformat() and row.get("status") == "FINAL"}
-if latest_final >= all_keywords:
-    start_date += timedelta(days=1)
+# 최근 31일을 다시 훑어 완료된 날짜는 건너뛰고, 과거의 부분 실패도 빠짐없이 재시도합니다.
+automation_start = date.fromisoformat(settings.get("COLLECTION_START_DATE", "2026-09-01"))
+start_date = max(automation_start, target_date - timedelta(days=30))
 
 client = NaverClient(settings)
 any_failed = False

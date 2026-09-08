@@ -1,5 +1,15 @@
 .env
+.env.*
+!.env.example
 .streamlit/secrets.toml
+.streamlit/secrets*.toml
+!.streamlit/secrets.example.toml
+*.key
+*.pem
+*.p12
+*.pfx
+credentials*.json
+secret*.json
 node_modules/
 npm-debug.log*
 data/store.json

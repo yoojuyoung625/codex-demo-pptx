@@ -27,6 +27,16 @@ for record in store.records():
         "estimatedQuery": record.get("estimatedQuery"), "calculationMode": record.get("calculationMode"), "finalizedAt": record.get("finalizedAt"),
     })
 
+# Preserve audited, confirmed zero records if absent from the remote snapshot.
+repair_path = ROOT / "data" / "confirmed_zero_records.json"
+if repair_path.exists():
+    existing_keys = {(r["date"], r["type"], r["keyword"]) for r in records}
+    for row in json.loads(repair_path.read_text(encoding="utf-8")):
+        key = (row["date"], row["type"], row["keyword"])
+        if key not in existing_keys and row.get("status") == "FINAL" and row.get("estimatedQuery") == 0:
+            records.append(row)
+            existing_keys.add(key)
+
 records.sort(key=lambda row: (row["date"], row["type"], row["keyword"]))
 if not records:
     raise SystemExit("Supabase 확정 데이터가 0건이므로 빈 파일을 배포하지 않습니다.")

@@ -1,0 +1,29 @@
+[
+  {
+    "date": "2026-10-03",
+    "keyword": "삼성화재다이렉트자동차",
+    "type": "brand",
+    "status": "FINAL",
+    "estimatedQuery": 0,
+    "calculationMode": "BACKFILL_CURRENT_SNAPSHOT",
+    "finalizedAt": "2026-10-04T23:00:10.367Z"
+  },
+  {
+    "date": "2026-10-04",
+    "keyword": "삼성화재애니카다이렉트",
+    "type": "brand",
+    "status": "FINAL",
+    "estimatedQuery": 0,
+    "calculationMode": "BACKFILL_CURRENT_SNAPSHOT",
+    "finalizedAt": "2026-10-04T23:00:10.367Z"
+  },
+  {
+    "date": "2026-10-05",
+    "keyword": "삼성화재다이렉트자동차",
+    "type": "brand",
+    "status": "FINAL",
+    "estimatedQuery": 0,
+    "calculationMode": "BACKFILL_CURRENT_SNAPSHOT",
+    "finalizedAt": "2026-10-07T10:39:20.552Z"
+  }
+]
